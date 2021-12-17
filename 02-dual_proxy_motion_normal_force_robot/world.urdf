@@ -54,13 +54,13 @@
 	        <inertia ixx="0.1" iyy="0.1" izz="0.1" ixy="0" ixz="0" iyz="0" />
 		</inertial>
 		<visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+            <origin xyz="0.0 0.1 0.0" rpy="0 0 0" />
             <geometry>
                 <box size="0.05 0.05 0.2" />
             </geometry>
         </visual>
 	    <collision>
-            <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+            <origin xyz="0.0 0.1 0.0" rpy="0 0 0" />
             <geometry>
                 <box size="0.05 0.05 0.2" />
             </geometry>
