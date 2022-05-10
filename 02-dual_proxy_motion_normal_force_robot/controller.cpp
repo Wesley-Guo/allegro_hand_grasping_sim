@@ -124,6 +124,9 @@ int main() {
 	int state = INIT;
 	MatrixXd N_prec = MatrixXd::Identity(dof,dof);
 
+	// hand state initialization
+	redis_client.set(ALLGERO_STATES_COMMANDED, "DEFAULT");
+
 	// joint task
 	auto joint_task = new Sai2Primitives::JointTask(robot);
 	VectorXd joint_task_torques = VectorXd::Zero(dof);
@@ -410,10 +413,12 @@ int main() {
 
 		if (activeStateString == "PREGRASP")
 			q_des_hand << 0.11, 0.34, 1.3, 1, 0.05, 0.43, 1.1, 1.3, -0.051, 0.46, 0.98, 1.2, 0, 1.2, 0.8, 1.6;
-		if (activeStateString == "TOUCH")
+		else if (activeStateString == "TOUCH")
 			q_des_hand << 0.12, 0.53, 1.4, 0.88, 0.15, 0.67, 1.1, 1.1, -0.047, 0.46, 0.98, 1.2, 0, 1.2, 0.8, 1.3;
-		if (activeStateString == "GRASP")
+		else if (activeStateString == "GRASP")
 			q_des_hand << 0.062, 0.52, 1.4, 0.88, 0.21, 0.66, 1.1, 1.1, -0.052, 0.46, 0.98, 1.2,  0, 1.3, 0.8, 1.2;
+		else
+			q_des_hand << 0.11, 0.34, 1.3, 1, 0.05, 0.43, 1.1, 1.3, -0.051, 0.46, 0.98, 1.2, 0, 1.2, 0.8, 1.6;
 
 		// write control torques and dual proxy variables
 		robot->position(haptic_proxy, link_name, pos_in_link);
