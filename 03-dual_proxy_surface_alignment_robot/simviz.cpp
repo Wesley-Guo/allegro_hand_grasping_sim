@@ -255,9 +255,12 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, Fo
 
     // initialize robot configuration
     VectorXd q_init = VectorXd::Zero(dof);
-    q_init << 0, -30, 0, -130, 0, 100, 0; // config from old controller
+    VectorXd q_init_robot = VectorXd::Zero(7);
+    q_init_robot << 0, -30, 0, -130, 0, 100, 0; // config from old controller
     // q_init << -25, -45, 0, -135, 45, 80, 0; // config from urdf
-    q_init *= M_PI / 180.0;
+    q_init_robot *= M_PI / 180.0;
+    q_init << q_init_robot, 0.11, 0.34, 1.3, 1, 0.05, 0.43, 1.1, 1.3, -0.051, 0.46, 0.98, 1.2, 0, 1.2, 0.8, 1.6;
+
     sim->setJointPositions(robot_name, q_init); // uncomment to set initial config
 
     // sensed force
