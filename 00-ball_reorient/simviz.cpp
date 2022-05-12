@@ -80,7 +80,7 @@ std::vector<Object> objects;
  */
 void initialize_objects()
 {
-    objects.push_back(Object("box", Vector3d::Zero(), Quaterniond::Identity()));
+    objects.push_back(Object("sphere", Vector3d::Zero(), Quaterniond::Identity()));
 };
 
 // simulation function prototype

@@ -1,11 +1,11 @@
 # create an executable
-set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${HAPTIC_APPLICATIONS_BINARY_DIR}/02-dual_proxy_motion_normal_force_robot)
-ADD_EXECUTABLE (control_02_robot controller.cpp ${HAPTIC_APPLICATIONS_COMMON_SOURCE})
-ADD_EXECUTABLE (simviz_02_robot simviz.cpp ${HAPTIC_APPLICATIONS_COMMON_SOURCE})
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ALLEGRO_HAND_GRASP_BINARY_DIR}/00-ball_reorient)
+ADD_EXECUTABLE (control_00_ball_reorient controller.cpp ${ALLEGRO_HAND_GRASP_COMMON_SOURCE})
+ADD_EXECUTABLE (simviz_00_ball_reorient simviz.cpp ${ALLEGRO_HAND_GRASP_COMMON_SOURCE})
 
 # and link the library against the executable
-TARGET_LINK_LIBRARIES (control_02_robot ${HAPTIC_APPLICATIONS_COMMON_LIBRARIES})
-TARGET_LINK_LIBRARIES (simviz_02_robot ${HAPTIC_APPLICATIONS_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (control_00_ball_reorient  ${ALLEGRO_HAND_GRASP_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (simviz_00_ball_reorient  ${ALLEGRO_HAND_GRASP_COMMON_LIBRARIES})
 
 # export resources such as model files.
 # NOTE: this requires an install build
