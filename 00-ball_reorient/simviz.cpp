@@ -62,11 +62,11 @@ const string link_name = "end_effector"; //robot end-effector
 
 
 // redis keys:
-string JOINT_ANGLES_KEY = "sai2::HapticApplications::02::simviz::sensors::q";
-string JOINT_VELOCITIES_KEY = "sai2::HapticApplications::02::simviz::sensors::dq";
-string ROBOT_COMMAND_TORQUES_KEY = "sai2::HapticApplications::02::simviz::actuators::tau_cmd";
+string JOINT_ANGLES_KEY = "sai2::AllegroGraspSim::00::simviz::sensors::q";
+string JOINT_VELOCITIES_KEY = "sai2::AllegroGraspSim::00::simviz::sensors::dq";
+string ROBOT_COMMAND_TORQUES_KEY = "sai2::AllegroGraspSim::00::simviz::actuators::tau_cmd";
 
-string ROBOT_SENSED_FORCE_KEY = "sai2::HapticApplications::02::simviz::sensors::sensed_force";
+string ROBOT_SENSED_FORCE_KEY = "sai2::AllegroGraspSim::00::simviz::sensors::sensed_force";
 string ALLGERO_TORQUE_COMMANDED = "allegroHand::controller::joint_torques_commanded";
 string ALLGERO_TORQUE_COMMANDED_SIM = "allegroHand::controller::joint_torques_commanded_sim";
 string ALLGERO_POSITION_COMMANDED = "allegroHand::controller::joint_positions_commanded";
@@ -193,6 +193,7 @@ int main() {
 
 	fSimulationRunning = true;
 	thread sim_thread(simulation, robot, sim, force_sensor);
+	// thread sim_thread(simulation, robot, sim);
 
 	// while window is open:
 	while (!glfwWindowShouldClose(window) && fSimulationRunning)
@@ -342,7 +343,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, Fo
 	redis_client.createWriteCallback(0);
 	redis_client.addEigenToWriteCallback(0, JOINT_ANGLES_KEY, robot_q);
 	redis_client.addEigenToWriteCallback(0, JOINT_VELOCITIES_KEY, robot_dq);
-	redis_client.addEigenToWriteCallback(0, ROBOT_SENSED_FORCE_KEY, sensed_force_moment);
+	// redis_client.addEigenToWriteCallback(0, ROBOT_SENSED_FORCE_KEY, sensed_force_moment);
 	redis_client.addEigenToWriteCallback(0, ALLGERO_TORQUE_COMMANDED, command_torques_hand);
 
 	// create a timer
