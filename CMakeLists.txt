@@ -83,4 +83,5 @@ set (ALLEGRO_HAND_GRASP_BINARY_DIR
 	${PROJECT_SOURCE_DIR}/bin
 	)
 add_subdirectory(00-ball_reorient)
+add_subdirectory(0-allegro_hand_only)
 
