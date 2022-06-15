@@ -4,6 +4,7 @@
 #include "redis/RedisClient.h"
 #include "timer/LoopTimer.h"
 #include "tasks/JointTask.h"
+#include "tasks/PositionTask.h"
 #include "tasks/PosOriTask.h"
 // #include "filters/ButterworthFilter.h"
 #include "../src/Logger.h"
@@ -78,6 +79,10 @@ int main() {
 	VectorXd robot_coriolis = VectorXd::Zero(robot_dof);
 	int state = INIT;
 	MatrixXd N_prec = MatrixXd::Identity(robot_dof,robot_dof);
+	MatrixXd finger_task_Jacobian = MatrixXd::Zero(3,robot_dof);
+	MatrixXd combined_task_Jacobian = MatrixXd::Zero(int(3*4),robot_dof);
+	// cout<<"combined task Jacobian" << endl << combined_task_Jacobian  << endl;
+
 
 	// joint task
 	auto joint_task = new Sai2Primitives::JointTask(robot);
@@ -100,15 +105,16 @@ int main() {
 	// define posori tasks for each fingertip
 	// const string link_name = "end_effector";
 	// const Vector3d pos_in_link = Vector3d(0, 0, 0.12);
-	auto posori_task_0 = new Sai2Primitives::PosOriTask(robot, hand_ee_link_names[0], hand_ee_pos_in_link);
-	auto posori_task_1 = new Sai2Primitives::PosOriTask(robot, hand_ee_link_names[1], hand_ee_pos_in_link);
-	auto posori_task_2 = new Sai2Primitives::PosOriTask(robot, hand_ee_link_names[2], hand_ee_pos_in_link);
-	auto posori_task_3 = new Sai2Primitives::PosOriTask(robot, hand_ee_link_names[3], hand_ee_pos_in_link);
+	auto posori_task_0 = new Sai2Primitives::PositionTask(robot, hand_ee_link_names[0], hand_ee_pos_in_link);
+	auto posori_task_1 = new Sai2Primitives::PositionTask(robot, hand_ee_link_names[1], hand_ee_pos_in_link);
+	auto posori_task_2 = new Sai2Primitives::PositionTask(robot, hand_ee_link_names[2], hand_ee_pos_in_link);
+	auto posori_task_3 = new Sai2Primitives::PositionTask(robot, hand_ee_link_names[3], hand_ee_pos_in_link);
 
-	Sai2Primitives::PosOriTask* finger_posori_tasks[] = {posori_task_0, posori_task_1, posori_task_2, posori_task_3};
+	Sai2Primitives::PositionTask* finger_pos_tasks[] = {posori_task_0, posori_task_1, posori_task_2, posori_task_3};
 
-	MatrixXd posori_task_torques = MatrixXd::Zero(4,4);
-	VectorXd computedFingerTorque = VectorXd::Zero(4);  
+	VectorXd one_finger_computed_torques =  VectorXd::Zero(robot_dof); 
+	MatrixXd all_pos_task_torques = VectorXd::Zero(robot_dof); 
+
 
 
 	// Vector3d x_init = posori_task->_current_position;
@@ -117,20 +123,17 @@ int main() {
 	// For each fingertip posori task, initialize control parameters
 
 	for (int i = 0; i < 4; i++) {
-		finger_posori_tasks[i]->_use_interpolation_flag = true;
-		finger_posori_tasks[i]->_otg->setMaxLinearVelocity(0.30);
-		finger_posori_tasks[i]->_otg->setMaxLinearAcceleration(1.0);
-		finger_posori_tasks[i]->_otg->setMaxLinearJerk(5.0);
+		// finger_pos_tasks[i]->_use_interpolation_flag = true;
+		// finger_pos_tasks[i]->_otg->setMaxLinearVelocity(0.30);
+		// finger_pos_tasks[i]->_otg->setMaxLinearAcceleration(1.0);
+		// finger_pos_tasks[i]->_otg->setMaxLinearJerk(5.0);
 
-		finger_posori_tasks[i]->_otg->setMaxAngularVelocity(M_PI/1.5);
-		finger_posori_tasks[i]->_otg->setMaxAngularAcceleration(3*M_PI);
-		finger_posori_tasks[i]->_otg->setMaxAngularJerk(15*M_PI);
+		// finger_pos_tasks[i]->_otg->setMaxAngularVelocity(M_PI/1.5);
+		// finger_pos_tasks[i]->_otg->setMaxAngularAcceleration(3*M_PI);
+		// finger_pos_tasks[i]->_otg->setMaxAngularJerk(15*M_PI);
 
-		finger_posori_tasks[i]->_kp_pos = 100.0;
-		finger_posori_tasks[i]->_kv_pos = 17.0;
-
-		finger_posori_tasks[i]->_kp_ori = 200.0;
-		finger_posori_tasks[i]->_kv_ori = 23.0;
+		finger_pos_tasks[i]->_kp = 100.0;
+		finger_pos_tasks[i]->_kv = 17.0;
 	}
 	
 
@@ -207,11 +210,18 @@ int main() {
 		// Set Task Hirearchy
 		N_prec.setIdentity(robot_dof,robot_dof);
 
-		for (int i = 0; i < 4; i++) {
-			finger_posori_tasks[i]->updateTaskModel(N_prec);
+		finger_task_Jacobian = MatrixXd::Zero(robot_dof,robot_dof);
+		combined_task_Jacobian = MatrixXd::Zero(int(3*4),robot_dof);
+		for (int i = 0; i < 4; i++) { 		// Construct combined Jacobian for all finger tasks 
+			finger_pos_tasks[i]->updateTaskModel(N_prec);
+			robot->Jv(finger_task_Jacobian, hand_ee_link_names[i], hand_ee_pos_in_link);
+			// cout<<"finger task Jacobian" << endl << finger_task_Jacobian  << endl;
+			combined_task_Jacobian.block(i*3, 0, 3, robot_dof) = finger_task_Jacobian;
+			// cout<<"combined task Jacobian" << endl << combined_task_Jacobian  << endl;
 		}
-
-		// N_prec = posori_task->_N; how to set joint task to lower hirearchy? Combine all the Jacobians?
+		// cout<<"combined task Jacobian" << endl << combined_task_Jacobian  << endl;
+		robot->nullspaceMatrix(N_prec, combined_task_Jacobian);
+		// cout<<"nullspace Matrix" << endl << N_prec  << endl;
 
 		joint_task->updateTaskModel(N_prec);
 
@@ -226,7 +236,7 @@ int main() {
 			if((joint_task->_desired_position - joint_task->_current_position).norm() < 0.2) {
 				// Reinitialize controllers
 				for (int i = 0; i < 4; i++) {
-					finger_posori_tasks[i]->reInitializeTask();
+					finger_pos_tasks[i]->reInitializeTask();
 				}
 				joint_task->reInitializeTask();
 
@@ -240,10 +250,11 @@ int main() {
 
 		else if(state == CONTROL) {
 
+			all_pos_task_torques = VectorXd::Zero(robot_dof); 
 			try	{
 				for (int i = 0; i < 4; i++) {
-					finger_posori_tasks[i]->computeTorques(computedFingerTorque);
-					// posori_task_torques.row(i) = computedFingerTorque; // need to fix slicing and indexing
+					finger_pos_tasks[i]->computeTorques(one_finger_computed_torques);
+					all_pos_task_torques += one_finger_computed_torques; // each pos task generates torques for all joints, with only the relevant finger joints being nonzero
 				}
 			}
 			catch(exception e) {
@@ -256,8 +267,8 @@ int main() {
 			}
 			joint_task->computeTorques(joint_task_torques);
 
-			// command_torques = posori_task_torques + joint_task_torques + robot_coriolis; // need to fix sizing issue
-			command_torques = VectorXd::Zero(robot_dof);
+			command_torques = all_pos_task_torques + joint_task_torques + robot_coriolis; // need to fix sizing issue
+			// command_torques = VectorXd::Zero(robot_dof);
 		}
 
 		// if (activeStateString == "PREGRASP")

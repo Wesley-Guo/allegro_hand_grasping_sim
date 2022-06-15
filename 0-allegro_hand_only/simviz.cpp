@@ -123,6 +123,24 @@ int main() {
 	Affine3d T_world_robot = Affine3d::Identity();
 	T_world_robot.translation() = Vector3d(0.35, 0.0, 0.6);
 	auto robot = new Sai2Model::Sai2Model(robot_file, false, T_world_robot);
+	robot->_q << 0/180.0*M_PI, // initialized starting position
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		0/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		0/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		-45/180.0*M_PI,
+		45/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI;
+	robot->updateModel();
+	cout<< endl << robot->_q << endl;
 
 	// load simulation world
 	auto sim = new Simulation::Sai2Simulation(world_file, false);
@@ -130,9 +148,11 @@ int main() {
 	sim->setCoeffFrictionStatic(0.5);
 
 	// read joint positions, velocities, update model
-	sim->getJointPositions(robot_name, robot->_q);
+	sim->setJointPositions(robot_name, robot->_q);
+	// sim->getJointPositions(robot_name, robot->_q);
 	sim->getJointVelocities(robot_name, robot->_dq);
 	robot->updateModel();
+	cout<< endl << robot->_q << endl;
 
 	// read objects initial positions
     initialize_objects();
