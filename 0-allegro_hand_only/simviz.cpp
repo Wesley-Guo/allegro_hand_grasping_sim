@@ -1,5 +1,4 @@
-// This example tests the haptic device driver and the open-loop bilateral teleoperation controller.
-
+#include <GL/glew.h>
 #include "Sai2Model.h"
 #include "Sai2Graphics.h"
 #include "Sai2Simulation.h"
@@ -12,10 +11,8 @@
 
 #include <iostream>
 #include <string>
-#include <random>
+#include <random> // used for white-noise generation
 #include <queue>
-
-#include <signal.h>
 
 /**
  * @struct Object
@@ -57,8 +54,8 @@ const string world_file = "./resources/world.urdf";
 const string robot_file = "./resources/allegro_hand.urdf";
 const string robot_name = "allegro";
 const string camera_name = "camera";
-const string link_name = "end_effector"; //robot end-effector
-
+const string base_link_name = "palm_link";
+const string hand_ee_link_names[] = {"link_3_tip", "link_7_tip", "link_11_tip", "link_15_tip"};
 
 
 // redis keys:
@@ -118,41 +115,45 @@ int main() {
 	auto graphics = new Sai2Graphics::Sai2Graphics(world_file, true);
 	Vector3d camera_pos, camera_lookat, camera_vertical;
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
+	graphics->_world->setBackgroundColor(66.0/255, 135.0/255, 245.0/255);
 
 	// load robots
 	Affine3d T_world_robot = Affine3d::Identity();
 	T_world_robot.translation() = Vector3d(0.35, 0.0, 0.6);
 	auto robot = new Sai2Model::Sai2Model(robot_file, false, T_world_robot);
-	robot->_q << 0/180.0*M_PI, // initialized starting position
-		15/180.0*M_PI,
-		15/180.0*M_PI,
-		15/180.0*M_PI,
-		0/180.0*M_PI,
-		15/180.0*M_PI,
-		15/180.0*M_PI,
-		15/180.0*M_PI,
-		0/180.0*M_PI,
-		15/180.0*M_PI,
-		15/180.0*M_PI,
-		15/180.0*M_PI,
-		-45/180.0*M_PI,
-		45/180.0*M_PI,
-		15/180.0*M_PI,
-		15/180.0*M_PI;
+	robot->_q = VectorXd::Zero(robot->dof());
+	// robot->_q << 15/180.0*M_PI, // initialized starting position
+	// 	15/180.0*M_PI,
+	// 	15/180.0*M_PI,
+	// 	15/180.0*M_PI,
+	// 	0/180.0*M_PI,
+	// 	15/180.0*M_PI,
+	// 	15/180.0*M_PI,
+	// 	15/180.0*M_PI,
+	// 	0/180.0*M_PI,
+	// 	15/180.0*M_PI,
+	// 	15/180.0*M_PI,
+	// 	15/180.0*M_PI,
+	// 	-45/180.0*M_PI,
+	// 	45/180.0*M_PI,
+	// 	15/180.0*M_PI,
+	// 	15/180.0*M_PI;
+	robot->_dq = VectorXd::Zero(robot->dof());
 	robot->updateModel();
 	cout<< endl << robot->_q << endl;
 
 	// load simulation world
 	auto sim = new Simulation::Sai2Simulation(world_file, false);
-	sim->setCollisionRestitution(0);
-	sim->setCoeffFrictionStatic(0.5);
+	sim->setCollisionRestitution(0.0);
+    sim->setCoeffFrictionStatic(1.0);
+    sim->setCoeffFrictionDynamic(0.1);
 
 	// read joint positions, velocities, update model
-	sim->setJointPositions(robot_name, robot->_q);
+	// sim->setJointPositions(robot_name, robot->_q);
 	// sim->getJointPositions(robot_name, robot->_q);
-	sim->getJointVelocities(robot_name, robot->_dq);
-	robot->updateModel();
-	cout<< endl << robot->_q << endl;
+	// sim->getJointVelocities(robot_name, robot->_dq);
+	// robot->updateModel();
+	// cout<< endl << robot->_q << endl;
 
 	// read objects initial positions
     initialize_objects();
@@ -311,9 +312,6 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	int dof = robot->dof();
 	VectorXd command_torques = VectorXd::Zero(dof);
 	VectorXd g = VectorXd::Zero(dof);
-	VectorXd control_torque = VectorXd::Zero(dof);
-	VectorXd q = VectorXd::Zero(dof);
-	VectorXd dq = VectorXd::Zero(dof);
 
 	double kv = 20;
 
@@ -324,52 +322,40 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	redis_client.addEigenToReadCallback(0, ROBOT_COMMAND_TORQUES_KEY, command_torques);
 
 	redis_client.createWriteCallback(0);
-	redis_client.addEigenToWriteCallback(0, JOINT_ANGLES_KEY, q);
-	redis_client.addEigenToWriteCallback(0, JOINT_VELOCITIES_KEY, dq);
+	redis_client.addEigenToWriteCallback(0, JOINT_ANGLES_KEY, robot->_q);
+	redis_client.addEigenToWriteCallback(0, JOINT_VELOCITIES_KEY, robot->_dq);
 
 	// create a timer
-	double sim_frequency = 2000.0;
 	LoopTimer timer;
 	timer.initializeTimer();
-	timer.setLoopFrequency(sim_frequency);
-	double last_time = timer.elapsedTime(); //secs
+	timer.setLoopFrequency(1000); 
 	bool fTimerDidSleep = true;
+	double start_time = timer.elapsedTime();
+	double last_time = start_time;
 
 	unsigned long long simulation_counter = 0;
 
-	// for default pd controller
-	double kp_default[] = {
-		1.6, 1.6, 1.6, 1.6,
-		1.6, 1.6, 1.6, 1.3,
-		1.6, 1.6, 1.6, 1.6,
-		1.6, 1.6, 1.6, 1.6
-	};
-	double kv_default[] = {
-		0.03, 0.03, 0.03, 0.03,
-		0.03, 0.03, 0.03, 0.03,
-		0.03, 0.03, 0.03, 0.03,
-		0.03, 0.03, 0.03, 0.03
-	};
-
+	// start simulation 
+	fSimulationRunning = true;	
 	while (fSimulationRunning) {
 		fTimerDidSleep = timer.waitForNextLoop();
 
-		// particle pos from controller
+		// Obtain torques from controller
 		redis_client.executeReadCallback(0);
 		
-		robot->gravityVector(g);
-		q = robot->_q;
-		dq = robot->_dq;
+		// robot->gravityVector(g);
 	
 		sim->setJointTorques(robot_name, command_torques);
 
 		// integrate forward
-		sim->integrate(1.0/sim_frequency);
+		double curr_time = timer.elapsedTime();
+		double loop_dt = curr_time - last_time; 
+		sim->integrate(loop_dt);
 
 		// read joint positions, velocities, update model
 		sim->getJointPositions(robot_name, robot->_q);
 		sim->getJointVelocities(robot_name, robot->_dq);
-		robot->updateKinematics();
+		robot->updateModel();
 		
 		// get object positions from simulation
         for (Object& obj : objects)
@@ -379,7 +365,8 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 		redis_client.executeWriteCallback(0);
 
-		simulation_counter++;
+		// update last time
+		last_time = curr_time;
 	}
 
 	double end_time = timer.elapsedTime();

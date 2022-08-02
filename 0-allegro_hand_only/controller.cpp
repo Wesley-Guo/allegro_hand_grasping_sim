@@ -31,6 +31,7 @@ const string robot_file = "./resources/allegro_hand.urdf";
 // robot local control loop
 string JOINT_ANGLES_KEY = "sai2::AllegroGraspSim::0::simviz::sensors::q";
 string JOINT_VELOCITIES_KEY = "sai2::AllegroGraspSim::0::simviz::sensors::dq";
+string JOINT_ANGLES_DESIRED_KEY = "sai2::AllegroGraspSim::0::simviz::control::q_des";
 string ROBOT_COMMAND_TORQUES_KEY = "sai2::AllegroGraspSim::0::simviz::actuators::tau_cmd";
 
 RedisClient redis_client;
@@ -70,50 +71,51 @@ int main() {
 	Affine3d T_world_robot = Affine3d::Identity();
 	T_world_robot.translation() = Vector3d(0.35, 0.0, 0.6);
 	auto robot = new Sai2Model::Sai2Model(robot_file, false, T_world_robot);
+	// auto robot = new Sai2Model::Sai2Model(robot_file, false);
 
 	robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
+	robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
 	robot->updateModel();
 
 	int robot_dof = robot->dof();
 	VectorXd command_torques = VectorXd::Zero(robot_dof);
 	VectorXd robot_coriolis = VectorXd::Zero(robot_dof);
-	int state = INIT;
 	MatrixXd N_prec = MatrixXd::Identity(robot_dof,robot_dof);
 	MatrixXd finger_task_Jacobian = MatrixXd::Zero(3,robot_dof);
 	MatrixXd combined_task_Jacobian = MatrixXd::Zero(int(3*4),robot_dof);
 	// cout<<"combined task Jacobian" << endl << combined_task_Jacobian  << endl;
 
 
+	// controller_state
+	int state = INIT;
+
 	// joint task
 	auto joint_task = new Sai2Primitives::JointTask(robot);
-	VectorXd joint_task_torques = VectorXd::Zero(robot_dof);
-	joint_task->_use_interpolation_flag = true;
-	joint_task->_use_velocity_saturation_flag = false;
+	joint_task->_use_interpolation_flag = false;
+	joint_task->_use_velocity_saturation_flag = true;
+	joint_task->setDynamicDecouplingFull();
 
-	joint_task->_kp = 200.0;
-	joint_task->_kv = 25.0;
-	joint_task->_ki = 50.0;
+	VectorXd joint_task_torques = VectorXd::Zero(robot_dof);
+	joint_task->_kp = 50.0;
+	joint_task->_kv = 13.0;
+	joint_task->_ki = 0.0;
 
 	Eigen::VectorXd g(robot_dof); //joint space gravity vector
-
-
-    // VectorXd q_init(dof);
-    // q_init << 0, -30, 0, -130, 0, 100, 0;
-    // q_init *= M_PI/180.0;
     joint_task->_desired_position = robot->_q; // use current robot config as init config
+	redis_client.setEigenMatrixJSON(JOINT_ANGLES_DESIRED_KEY, robot->_q);
 
 	// define posori tasks for each fingertip
 	// const string link_name = "end_effector";
 	// const Vector3d pos_in_link = Vector3d(0, 0, 0.12);
-	auto posori_task_0 = new Sai2Primitives::PositionTask(robot, hand_ee_link_names[0], hand_ee_pos_in_link);
-	auto posori_task_1 = new Sai2Primitives::PositionTask(robot, hand_ee_link_names[1], hand_ee_pos_in_link);
-	auto posori_task_2 = new Sai2Primitives::PositionTask(robot, hand_ee_link_names[2], hand_ee_pos_in_link);
-	auto posori_task_3 = new Sai2Primitives::PositionTask(robot, hand_ee_link_names[3], hand_ee_pos_in_link);
+	// auto posori_task_0 = new Sai2Primitives::PositionTask(robot, hand_ee_link_names[0], hand_ee_pos_in_link);
+	// auto posori_task_1 = new Sai2Primitives::PositionTask(robot, hand_ee_link_names[1], hand_ee_pos_in_link);
+	// auto posori_task_2 = new Sai2Primitives::PositionTask(robot, hand_ee_link_names[2], hand_ee_pos_in_link);
+	// auto posori_task_3 = new Sai2Primitives::PositionTask(robot, hand_ee_link_names[3], hand_ee_pos_in_link);
 
-	Sai2Primitives::PositionTask* finger_pos_tasks[] = {posori_task_0, posori_task_1, posori_task_2, posori_task_3};
+	// Sai2Primitives::PositionTask* finger_pos_tasks[] = {posori_task_0, posori_task_1, posori_task_2, posori_task_3};
 
-	VectorXd one_finger_computed_torques =  VectorXd::Zero(robot_dof); 
-	MatrixXd all_pos_task_torques = VectorXd::Zero(robot_dof); 
+	// VectorXd one_finger_computed_torques =  VectorXd::Zero(robot_dof); 
+	// MatrixXd all_pos_task_torques = VectorXd::Zero(robot_dof); 
 
 
 
@@ -122,19 +124,19 @@ int main() {
 
 	// For each fingertip posori task, initialize control parameters
 
-	for (int i = 0; i < 4; i++) {
-		// finger_pos_tasks[i]->_use_interpolation_flag = true;
-		// finger_pos_tasks[i]->_otg->setMaxLinearVelocity(0.30);
-		// finger_pos_tasks[i]->_otg->setMaxLinearAcceleration(1.0);
-		// finger_pos_tasks[i]->_otg->setMaxLinearJerk(5.0);
+	// for (int i = 0; i < 4; i++) {
+	// 	// finger_pos_tasks[i]->_use_interpolation_flag = true;
+	// 	// finger_pos_tasks[i]->_otg->setMaxLinearVelocity(0.30);
+	// 	// finger_pos_tasks[i]->_otg->setMaxLinearAcceleration(1.0);
+	// 	// finger_pos_tasks[i]->_otg->setMaxLinearJerk(5.0);
 
-		// finger_pos_tasks[i]->_otg->setMaxAngularVelocity(M_PI/1.5);
-		// finger_pos_tasks[i]->_otg->setMaxAngularAcceleration(3*M_PI);
-		// finger_pos_tasks[i]->_otg->setMaxAngularJerk(15*M_PI);
+	// 	// finger_pos_tasks[i]->_otg->setMaxAngularVelocity(M_PI/1.5);
+	// 	// finger_pos_tasks[i]->_otg->setMaxAngularAcceleration(3*M_PI);
+	// 	// finger_pos_tasks[i]->_otg->setMaxAngularJerk(15*M_PI);
 
-		finger_pos_tasks[i]->_kp = 100.0;
-		finger_pos_tasks[i]->_kv = 17.0;
-	}
+	// 	finger_pos_tasks[i]->_kp = 50.0;
+	// 	finger_pos_tasks[i]->_kv = 17.0;
+	// }
 	
 
 	// if(!flag_simulation) {
@@ -150,6 +152,7 @@ int main() {
 	// Objects to read from redis
     redis_client.addEigenToReadCallback(0, JOINT_ANGLES_KEY, robot->_q);
     redis_client.addEigenToReadCallback(0, JOINT_VELOCITIES_KEY, robot->_dq);
+	// redis_client.addEigenToReadCallback(0, JOINT_ANGLES_DESIRED_KEY, joint_task->_desired_position);
 	
 	// Objects to write to redis
 	redis_client.addEigenToWriteCallback(0, ROBOT_COMMAND_TORQUES_KEY, command_torques);
@@ -161,19 +164,19 @@ int main() {
 	
 	// Vector3d log_robot_ee_position = x_init;
 	// Vector3d log_robot_ee_velocity = Vector3d::Zero();
-	// VectorXd log_joint_angles = robot->_q;
-	// VectorXd log_joint_velocities = robot->_dq;
-	// VectorXd log_joint_command_torques = command_torques;
+	VectorXd log_joint_angles = robot->_q;
+	VectorXd log_joint_velocities = robot->_dq;
+	VectorXd log_joint_command_torques = command_torques;
     // Vector3d log_desired_force = Vector3d::Zero();
 
 	// logger->addVectorToLog(&log_robot_ee_position, "robot_ee_position");
 	// logger->addVectorToLog(&log_robot_ee_velocity, "robot_ee_velocity");
-	// logger->addVectorToLog(&log_joint_angles, "joint_angles");
-	// logger->addVectorToLog(&log_joint_velocities, "joint_velocities");
-	// logger->addVectorToLog(&log_joint_command_torques, "joint_command_torques");
+	logger->addVectorToLog(&log_joint_angles, "joint_angles");
+	logger->addVectorToLog(&log_joint_velocities, "joint_velocities");
+	logger->addVectorToLog(&log_joint_command_torques, "joint_command_torques");
     // logger->addVectorToLog(&log_desired_force, "desired_force");
 
-	// logger->start();
+	logger->start();
 
 
 	// create a timer
@@ -193,12 +196,12 @@ int main() {
 		timer.waitForNextLoop();
 		current_time = timer.elapsedTime() - start_time;
 
-		// read haptic state and robot state
+		// read robot state
 		redis_client.executeReadCallback(0);
 
 		if(flag_simulation) {
 			robot->updateModel();
-			robot->coriolisForce(robot_coriolis);
+			// robot->coriolisForce(robot_coriolis);
 		}
 		else {
 			robot->updateKinematics();
@@ -208,67 +211,80 @@ int main() {
 		}
 
 		// Set Task Hirearchy
-		N_prec.setIdentity(robot_dof,robot_dof);
+		// N_prec.setIdentity(robot_dof,robot_dof);
 
-		finger_task_Jacobian = MatrixXd::Zero(robot_dof,robot_dof);
-		combined_task_Jacobian = MatrixXd::Zero(int(3*4),robot_dof);
-		for (int i = 0; i < 4; i++) { 		// Construct combined Jacobian for all finger tasks 
-			finger_pos_tasks[i]->updateTaskModel(N_prec);
-			robot->Jv(finger_task_Jacobian, hand_ee_link_names[i], hand_ee_pos_in_link);
-			// cout<<"finger task Jacobian" << endl << finger_task_Jacobian  << endl;
-			combined_task_Jacobian.block(i*3, 0, 3, robot_dof) = finger_task_Jacobian;
-			// cout<<"combined task Jacobian" << endl << combined_task_Jacobian  << endl;
-		}
-		// cout<<"combined task Jacobian" << endl << combined_task_Jacobian  << endl;
-		robot->nullspaceMatrix(N_prec, combined_task_Jacobian);
-		// cout<<"nullspace Matrix" << endl << N_prec  << endl;
+		// finger_task_Jacobian = MatrixXd::Zero(robot_dof,robot_dof);
+		// combined_task_Jacobian = MatrixXd::Zero(int(3*4),robot_dof);
+		// for (int i = 0; i < 4; i++) { 		// Construct combined Jacobian for all finger tasks 
+		// 	finger_pos_tasks[i]->updateTaskModel(N_prec);
+		// 	robot->Jv(finger_task_Jacobian, hand_ee_link_names[i], hand_ee_pos_in_link);
+		// 	// cout<<"finger task Jacobian" << endl << finger_task_Jacobian  << endl;
+		// 	combined_task_Jacobian.block(i*3, 0, 3, robot_dof) = finger_task_Jacobian;
+		// 	// cout<<"combined task Jacobian" << endl << combined_task_Jacobian  << endl;
+		// }
+		// // cout<<"combined task Jacobian" << endl << combined_task_Jacobian  << endl;
+		// robot->nullspaceMatrix(N_prec, combined_task_Jacobian);
+		// // cout<<"nullspace Matrix" << endl << N_prec  << endl;
 
-		joint_task->updateTaskModel(N_prec);
+		// joint_task->updateTaskModel(N_prec);
+		joint_task->updateTaskModel(MatrixXd::Identity(robot_dof,robot_dof));
 
 		if(state == INIT) {
-			robot->gravityVector(g);
-			joint_task->updateTaskModel(MatrixXd::Identity(robot_dof,robot_dof));
+			// robot->gravityVector(g);
+			// joint_task->updateTaskModel(MatrixXd::Identity(robot_dof,robot_dof));
 
-			joint_task->computeTorques(joint_task_torques);
-			command_torques = joint_task_torques + robot_coriolis;
-			// command_torques = joint_task_torques + coriolis + g;
+			// joint_task->computeTorques(joint_task_torques);
+			// command_torques = joint_task_torques + robot_coriolis;
+			// // command_torques = joint_task_torques + coriolis + g;
 
-			if((joint_task->_desired_position - joint_task->_current_position).norm() < 0.2) {
-				// Reinitialize controllers
-				for (int i = 0; i < 4; i++) {
-					finger_pos_tasks[i]->reInitializeTask();
-				}
-				joint_task->reInitializeTask();
+			// if((joint_task->_desired_position - joint_task->_current_position).norm() < 0.2) {
+			// 	// Reinitialize controllers
+			// 	for (int i = 0; i < 4; i++) {
+			// 		finger_pos_tasks[i]->reInitializeTask();
+			// 	}
+			// 	joint_task->reInitializeTask();
 
-				joint_task->_kp = 50.0;
-				joint_task->_kv = 13.0;
-				joint_task->_ki = 0.0;
+			// 	joint_task->_kp = 50.0;
+			// 	joint_task->_kv = 13.0;
+			// 	joint_task->_ki = 0.0;
 
-				state = CONTROL;
-			}
+			// 	state = CONTROL;
+			// }
+			joint_task->_desired_position(0) += M_PI / 3;
+			joint_task->_desired_position(4) -= M_PI / 3;
+			joint_task->_desired_position(8) += M_PI / 3;
+			joint_task->_desired_position(12) -= M_PI / 3;
+
+			state = CONTROL;
 		}
 
 		else if(state == CONTROL) {
 
-			all_pos_task_torques = VectorXd::Zero(robot_dof); 
-			try	{
-				for (int i = 0; i < 4; i++) {
-					finger_pos_tasks[i]->computeTorques(one_finger_computed_torques);
-					all_pos_task_torques += one_finger_computed_torques; // each pos task generates torques for all joints, with only the relevant finger joints being nonzero
-				}
-			}
-			catch(exception e) {
-				cout << "control cycle: " << controller_counter << endl;
-				cout << "error in the torque computation of posori_task:" << endl;
-				cerr << e.what() << endl;
-				cout << "setting torques to zero for this control cycle" << endl;
-				cout << endl;
-				// posori_task_torques.setZero(); // set task torques to zero, TODO: test this
-			}
+			// all_pos_task_torques = VectorXd::Zero(robot_dof); 
+			// try	{
+			// 	for (int i = 0; i < 4; i++) {
+			// 		finger_pos_tasks[i]->computeTorques(one_finger_computed_torques);
+			// 		all_pos_task_torques += one_finger_computed_torques; // each pos task generates torques for all joints, with only the relevant finger joints being nonzero
+			// 	}
+			// }
+			// catch(exception e) {
+			// 	cout << "control cycle: " << controller_counter << endl;
+			// 	cout << "error in the torque computation of posori_task:" << endl;
+			// 	cerr << e.what() << endl;
+			// 	cout << "setting torques to zero for this control cycle" << endl;
+			// 	cout << endl;
+			// 	// posori_task_torques.setZero(); // set task torques to zero, TODO: test this
+			// }
+			joint_task->updateTaskModel(MatrixXd::Identity(robot_dof,robot_dof));
 			joint_task->computeTorques(joint_task_torques);
 
-			command_torques = all_pos_task_torques + joint_task_torques + robot_coriolis; // need to fix sizing issue
+			// command_torques = all_pos_task_torques + joint_task_torques + robot_coriolis;
+			// command_torques = joint_task_torques + robot_coriolis;
+			command_torques = joint_task_torques;
+			// command_torques = 10*VectorXd::Random(robot_dof);
 			// command_torques = VectorXd::Zero(robot_dof);
+			// cout<<"Control torques: " << endl << command_torques  << endl;
+			
 		}
 
 		// if (activeStateString == "PREGRASP")
@@ -298,9 +314,9 @@ int main() {
 		
 		// log_robot_ee_position = ee_pos;
 		// log_robot_ee_velocity = ee_vel;
-		// log_joint_angles = robot->_q;
-		// log_joint_velocities = robot->_dq;
-		// log_joint_command_torques = command_torques;
+		log_joint_angles = robot->_q;
+		log_joint_velocities = robot->_dq;
+		log_joint_command_torques = command_torques;
         // log_desired_force = posori_task->_desired_force;
 	
 		controller_counter++;
