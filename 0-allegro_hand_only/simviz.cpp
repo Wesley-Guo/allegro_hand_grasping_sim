@@ -56,7 +56,7 @@ const string robot_name = "allegro";
 const string camera_name = "camera";
 const string base_link_name = "palm_link";
 const string hand_ee_link_names[] = {"link_3_tip", "link_7_tip", "link_11_tip", "link_15_tip"};
-
+const Vector3d hand_ee_pos_in_link = Vector3d(0.0,0.0,0.035);
 
 // redis keys:
 string JOINT_ANGLES_KEY = "sai2::AllegroGraspSim::0::simviz::sensors::q";
@@ -121,26 +121,25 @@ int main() {
 	Affine3d T_world_robot = Affine3d::Identity();
 	T_world_robot.translation() = Vector3d(0.35, 0.0, 0.6);
 	auto robot = new Sai2Model::Sai2Model(robot_file, false, T_world_robot);
-	robot->_q = VectorXd::Zero(robot->dof());
-	// robot->_q << 15/180.0*M_PI, // initialized starting position
-	// 	15/180.0*M_PI,
-	// 	15/180.0*M_PI,
-	// 	15/180.0*M_PI,
-	// 	0/180.0*M_PI,
-	// 	15/180.0*M_PI,
-	// 	15/180.0*M_PI,
-	// 	15/180.0*M_PI,
-	// 	0/180.0*M_PI,
-	// 	15/180.0*M_PI,
-	// 	15/180.0*M_PI,
-	// 	15/180.0*M_PI,
-	// 	-45/180.0*M_PI,
-	// 	45/180.0*M_PI,
-	// 	15/180.0*M_PI,
-	// 	15/180.0*M_PI;
+	// robot->_q = VectorXd::Zero(robot->dof());
+	robot->_q << 15/180.0*M_PI, // initialized starting position
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		0/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		0/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		-45/180.0*M_PI,
+		45/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI;
 	robot->_dq = VectorXd::Zero(robot->dof());
 	robot->updateModel();
-	cout<< endl << robot->_q << endl;
 
 	// load simulation world
 	auto sim = new Simulation::Sai2Simulation(world_file, false);
@@ -149,11 +148,25 @@ int main() {
     sim->setCoeffFrictionDynamic(0.1);
 
 	// read joint positions, velocities, update model
-	// sim->setJointPositions(robot_name, robot->_q);
-	// sim->getJointPositions(robot_name, robot->_q);
-	// sim->getJointVelocities(robot_name, robot->_dq);
-	// robot->updateModel();
+	sim->setJointPositions(robot_name, robot->_q);
+	sim->getJointPositions(robot_name, robot->_q);
+	sim->getJointVelocities(robot_name, robot->_dq);
+	robot->updateModel();
 	// cout<< endl << robot->_q << endl;
+
+	// get world positions of fingertip joints
+	Affine3d T_world_finger_0 = Affine3d::Identity();
+	Affine3d T_world_finger_1 = Affine3d::Identity();
+	Affine3d T_world_finger_2 = Affine3d::Identity();
+	Affine3d T_world_finger_3 = Affine3d::Identity();
+	robot->transformInWorld(T_world_finger_0, hand_ee_link_names[0], hand_ee_pos_in_link);
+	robot->transformInWorld(T_world_finger_1, hand_ee_link_names[1], hand_ee_pos_in_link);
+	robot->transformInWorld(T_world_finger_2, hand_ee_link_names[2], hand_ee_pos_in_link);
+	robot->transformInWorld(T_world_finger_3, hand_ee_link_names[3], hand_ee_pos_in_link);
+	cout<< endl << T_world_finger_0.translation() << endl;
+	cout<< endl << T_world_finger_1.translation() << endl;
+	cout<< endl << T_world_finger_2.translation() << endl;
+	cout<< endl << T_world_finger_3.translation() << endl;
 
 	// read objects initial positions
     initialize_objects();
