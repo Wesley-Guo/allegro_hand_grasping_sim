@@ -122,7 +122,7 @@ int main() {
 	T_world_robot.translation() = Vector3d(0.35, 0.0, 0.6);
 	auto robot = new Sai2Model::Sai2Model(robot_file, false, T_world_robot);
 	// robot->_q = VectorXd::Zero(robot->dof());
-	robot->_q << 15/180.0*M_PI, // initialized starting position
+	robot->_q << 0 /180.0*M_PI, // initialized starting position
 		15/180.0*M_PI,
 		15/180.0*M_PI,
 		15/180.0*M_PI,
@@ -341,7 +341,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	// create a timer
 	LoopTimer timer;
 	timer.initializeTimer();
-	timer.setLoopFrequency(1000); 
+	timer.setLoopFrequency(2000); 
 	bool fTimerDidSleep = true;
 	double start_time = timer.elapsedTime();
 	double last_time = start_time;

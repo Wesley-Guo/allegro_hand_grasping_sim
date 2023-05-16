@@ -69,13 +69,13 @@
       </geometry>
       <material name="black"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.0164"/> -->
+        <box size="0.0196 0.0275 0.0164"/>
         <mesh filename="../../../model/allegro/link_0.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0082"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0119"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -98,13 +98,13 @@
       </geometry>
       <material name="black"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.054"/> -->
+        <box size="0.0196 0.0275 0.054"/>
         <mesh filename="../../../model/allegro/link_1.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.027"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.065"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -127,13 +127,13 @@
       </geometry>
       <material name="black"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
         <mesh filename="../../../model/allegro/link_2.0.obj"/>
-        <!-- <box size="0.0196 0.0275 0.0384"/> -->
+        <box size="0.0196 0.0275 0.0384"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0192"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0355"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -156,13 +156,13 @@
       </geometry>
       <material name="black"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.0267"/> -->
+        <box size="0.0196 0.0275 0.0267"/>
         <mesh filename="../../../model/allegro/link_3.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.01335"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0096"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -187,11 +187,11 @@
         <color rgba=".9 .9 .9 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
         <sphere radius="0.012"/>
       </geometry>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0168"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -211,13 +211,13 @@
       </geometry>
       <material name="black"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.0164"/> -->
+        <box size="0.0196 0.0275 0.0164"/>
         <mesh filename="../../../model/allegro/link_0.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0082"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0119"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -240,13 +240,13 @@
       </geometry>
       <material name="black"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.054"/> -->
+        <box size="0.0196 0.0275 0.054"/>
         <mesh filename="../../../model/allegro/link_1.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.027"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.065"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -269,13 +269,13 @@
       </geometry>
       <material name="black"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.0384"/> -->
+        <box size="0.0196 0.0275 0.0384"/>
         <mesh filename="../../../model/allegro/link_2.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0192"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0355"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -298,13 +298,13 @@
       </geometry>
       <material name="black"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.0267"/> -->
+        <box size="0.0196 0.0275 0.0267"/>
         <mesh filename="../../../model/allegro/link_3.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.01335"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0096"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -329,12 +329,11 @@
         <color rgba=".9 .9 .9 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
         <sphere radius="0.012"/>
-        <!-- <sphere radius="0.01"/> -->
       </geometry>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0168"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -354,13 +353,13 @@
       </geometry>
       <material name="black"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.0164"/> -->
+        <box size="0.0196 0.0275 0.0164"/>
         <mesh filename="../../../model/allegro/link_0.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0082"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0119"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -383,13 +382,13 @@
       </geometry>
       <material name="black"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.054"/> -->
+        <box size="0.0196 0.0275 0.054"/>
         <mesh filename="../../../model/allegro/link_1.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.027"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.065"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -412,13 +411,13 @@
       </geometry>
       <material name="black"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.0384"/> -->
+        <box size="0.0196 0.0275 0.0384"/>
         <mesh filename="../../../model/allegro/link_2.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0192"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0355"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -441,13 +440,13 @@
       </geometry>
       <material name="black"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.0267"/> -->
+        <box size="0.0196 0.0275 0.0267"/>
         <mesh filename="../../../model/allegro/link_3.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.01335"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0096"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -472,11 +471,11 @@
         <color rgba=".9 .9 .9 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
         <sphere radius="0.012"/>
       </geometry>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0168"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -499,13 +498,13 @@
       </material>
       <origin rpy="0 0 0" xyz="0 0 0"/>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0358 0.034 0.0455"/> -->
+        <box size="0.0358 0.034 0.0455"/>
         <mesh filename="../../../model/allegro/link_12.0_right.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="-0.0179 0.009 0.0145"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0176"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -532,13 +531,13 @@
         <color rgba=".2 .2 .2 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.0177"/> -->
+        <box size="0.0196 0.0275 0.0177"/>
         <mesh filename="../../../model/allegro/link_13.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.00885"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0119"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -563,13 +562,13 @@
         <color rgba=".2 .2 .2 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.0514"/> -->
+        <box size="0.0196 0.0275 0.0514"/>
         <mesh filename="../../../model/allegro/link_14.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0257"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.038"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -593,13 +592,13 @@
       <material name="black">
                 </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
-        <!-- <box size="0.0196 0.0275 0.0423"/> -->
+        <box size="0.0196 0.0275 0.0423"/>
         <mesh filename="../../../model/allegro/link_15.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.02115"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0388"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -625,12 +624,12 @@
         <color rgba=".9 .9 .9 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
         <sphere radius="0.012"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0168"/>
       <origin rpy="0 0 0" xyz="0 0 0"/>
