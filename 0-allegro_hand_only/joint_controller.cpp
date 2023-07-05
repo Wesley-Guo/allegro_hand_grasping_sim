@@ -218,7 +218,7 @@ int main() {
                 prev_time = current_time;
             }
 			joint_task->computeTorques(joint_task_torques);
-			command_torques = joint_task_torques + gravity;		
+			command_torques = joint_task_torques;		
 		}
 
 		// write control torques
