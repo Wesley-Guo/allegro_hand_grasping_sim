@@ -43,10 +43,6 @@ const double control_loop_freq = 1000.0;
 const string fingertip_link_names[] = {"link_3_tip", "link_7_tip", "link_11_tip", "link_15_tip"};
 const Vector3d fingertip_pos_in_link = Vector3d(0.0,0.0,0.035);
 
-Eigen::VectorXd finger_joint_angle_mid = Eigen::VectorXd::Zero(4);
-Eigen::VectorXd thumb_joint_angle_mid = Eigen::VectorXd::Zero(4);
-
-
 // const bool flag_simulation = false;
 const bool flag_simulation = true;
 
@@ -75,9 +71,8 @@ int main() {
 	MatrixXd N_prec = MatrixXd::Identity(robot_dof,robot_dof);
     MatrixXd N_task = MatrixXd::Identity(robot_dof,robot_dof);
 	MatrixXd finger_task_Jacobian = MatrixXd::Zero(3,robot_dof);
+	MatrixXd combined_task_Jacobian = MatrixXd::Zero(3 * 4,robot_dof);
     VectorXd q_mid = VectorXd::Zero(robot_dof);
-    finger_joint_angle_mid << 0, 0.715, 0.7675, 0.7;
-    thumb_joint_angle_mid << 0.93, 0.53, 0.7279, 0.78;
     q_mid << robot->_q;
 
 	// controller_state
@@ -113,6 +108,17 @@ int main() {
     finger_pos_tasks.push_back(finger_pos_task_1);
     finger_pos_tasks.push_back(finger_pos_task_2);
     finger_pos_tasks.push_back(finger_pos_task_3);
+
+	std::vector<Eigen::Vector3d> finger_target_positions;
+	Eigen::Vector3d finger_position_desired = Eigen::Vector3d::Zero();
+	finger_position_desired << 0.083392, 0.0372761, -0.0577813;
+	finger_target_positions.push_back(finger_position_desired);
+	finger_position_desired << 0.08068, 0.0, -0.0433452;
+	finger_target_positions.push_back(finger_position_desired);
+	finger_position_desired << 0.087747, -0.050996, -0.0295742;
+	finger_target_positions.push_back(finger_position_desired);
+	finger_position_desired << 0.083392, 0.0372761, -0.0577813;
+	finger_target_positions.push_back(finger_position_desired);
 
 	Affine3d T_world_finger_0 = Affine3d::Identity();
 
@@ -197,28 +203,26 @@ int main() {
 
 			joint_task->computeTorques(joint_task_torques);
 			command_torques.setZero();
-			command_torques = joint_task_torques + g;
+			command_torques = joint_task_torques;
 
 			state = CONTROL;
 		}
 
 		else if(state == CONTROL) {
 			robot->gravityVector(g);
-            finger_pos_tasks[0]->updateTaskModel(N_prec);
-
 			all_pos_task_torques = VectorXd::Zero(robot_dof); 
 
-            robot->position(finger_tip_pos, fingertip_link_names[0], fingertip_pos_in_link);
-            finger_pos_tasks[0]->_desired_position << 0.113392, 0.0372761, -0.0577813;
+			for (int i = 0; i < 4; i++){
+				finger_pos_tasks[i]->updateTaskModel(N_prec);
+            	finger_pos_tasks[i]->_desired_position << finger_target_positions[i];
+				robot->Jv(finger_task_Jacobian, fingertip_link_names[i], fingertip_pos_in_link);
+				combined_task_Jacobian.block(i*3, 0, 3, robot_dof) = finger_task_Jacobian;
+			}
 
-            // std::cout << "current position: " << finger_tip_pos << std::endl;
-            // std::cout << "desired position: " << finger_pos_tasks[0]->_desired_position << std::endl;
-
-            robot->Jv(finger_task_Jacobian, fingertip_link_names[0], fingertip_pos_in_link);
-		    robot->nullspaceMatrix(N_task, finger_task_Jacobian);
+		    robot->nullspaceMatrix(N_task, combined_task_Jacobian);
 
 			try	{
-				for (int i = 0; i < 1; i++) {
+				for (int i = 0; i < 4; i++) {
 					finger_pos_tasks[i]->computeTorques(one_finger_computed_torques);
 					all_pos_task_torques += one_finger_computed_torques; // each pos task generates torques for all joints, with only the relevant finger joints being nonzero
 					// cout<<"one finger task torque" << endl << one_finger_computed_torques << endl;
