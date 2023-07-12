@@ -29,10 +29,16 @@ const string robot_file = "./resources/allegro_hand.urdf";
 
 // redis keys:
 // robot local control loop
-string JOINT_ANGLES_KEY = "sai2::AllegroGraspSim::0::simviz::sensors::q";
-string JOINT_VELOCITIES_KEY = "sai2::AllegroGraspSim::0::simviz::sensors::dq";
-string JOINT_ANGLES_DESIRED_KEY = "sai2::AllegroGraspSim::0::simviz::control::q_des";
-string ROBOT_COMMAND_TORQUES_KEY = "sai2::AllegroGraspSim::0::simviz::actuators::tau_cmd";
+string JOINT_ANGLES_SIM_KEY = "sai2::AllegroGraspSim::0::simviz::sensors::q";
+string JOINT_VELOCITIES_SIM_KEY = "sai2::AllegroGraspSim::0::simviz::sensors::dq";
+string JOINT_ANGLES_DESIRED_SIM_KEY = "sai2::AllegroGraspSim::0::simviz::control::q_des";
+string ROBOT_COMMAND_TORQUES_SIM_KEY = "sai2::AllegroGraspSim::0::simviz::actuators::tau_cmd";
+
+string CONTROL_MODE = "allegroHand::controller::control_mode";
+string JOINT_ANGLES_KEY = "allegroHand::sensors::joint_positions";
+string JOINT_VELOCITIES_KEY = "allegroHand::sensors::joint_velocities";
+string JOINT_ANGLES_DESIRED_KEY = "allegroHand::controller::joint_positions_commanded";
+string ROBOT_COMMAND_TORQUES_KEY = "allegroHand::controller::joint_torques_commanded";
 
 RedisClient redis_client;
 
@@ -61,8 +67,13 @@ int main() {
 	T_world_robot.translation() = Vector3d(0.35, 0.0, 0.6);
 	auto robot = new Sai2Model::Sai2Model(robot_file, false, T_world_robot);
 
-	robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
-	robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
+	if (flag_simulation){
+		robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_SIM_KEY);
+		robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_SIM_KEY);
+	} else {
+		robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
+		robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
+	}
 	robot->updateModel();
 
 	int robot_dof = robot->dof();
@@ -94,14 +105,27 @@ int main() {
 
 	Eigen::VectorXd g(robot_dof); //joint space gravity vector
     joint_task->_desired_position = robot->_q; // use current robot config as init config
-	redis_client.setEigenMatrixJSON(JOINT_ANGLES_DESIRED_KEY, robot->_q);
+	if (flag_simulation) {
+		redis_client.setEigenMatrixJSON(JOINT_ANGLES_DESIRED_SIM_KEY, robot->_q);
+	} else {
+		redis_client.setEigenMatrixJSON(JOINT_ANGLES_DESIRED_KEY, robot->_q);
+	}
+	
 
 	// define tasks for each fingertip
     // TODO: make this shapred_ptr
 	auto finger_pos_task_0 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[0], fingertip_pos_in_link);
+	finger_pos_task_0->_use_velocity_saturation_flag = true;
+	finger_pos_task_0->_saturation_velocity = 0.1;
     auto finger_pos_task_1 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[1], fingertip_pos_in_link);
+	finger_pos_task_1->_use_velocity_saturation_flag = true;
+	finger_pos_task_1->_saturation_velocity = 0.1;
     auto finger_pos_task_2 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[2], fingertip_pos_in_link);
+	finger_pos_task_2->_use_velocity_saturation_flag = true;
+	finger_pos_task_2->_saturation_velocity = 0.1;
     auto finger_pos_task_3 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[3], fingertip_pos_in_link);
+	finger_pos_task_3->_use_velocity_saturation_flag = true;
+	finger_pos_task_3->_saturation_velocity = 0.1;
 
 	std::vector<Sai2Primitives::PositionTask*> finger_pos_tasks;
     finger_pos_tasks.push_back(finger_pos_task_0);
@@ -120,6 +144,19 @@ int main() {
 	finger_position_desired << 0.083392, 0.0372761, -0.0577813;
 	finger_target_positions.push_back(finger_position_desired);
 
+	std::vector<Eigen::Vector3d> finger_current_positions;
+	Eigen::Vector3d finger_current_position = Eigen::Vector3d::Zero();
+	robot->position(finger_current_position, fingertip_link_names[0], fingertip_pos_in_link);
+	finger_current_positions.push_back(finger_current_position);
+	robot->position(finger_current_position, fingertip_link_names[1], fingertip_pos_in_link);
+	finger_current_positions.push_back(finger_current_position);
+	robot->position(finger_current_position, fingertip_link_names[2], fingertip_pos_in_link);
+	finger_current_positions.push_back(finger_current_position);
+	robot->position(finger_current_position, fingertip_link_names[3], fingertip_pos_in_link);
+	finger_current_positions.push_back(finger_current_position);
+
+	int current_finger_idx = 0;
+
 	Affine3d T_world_finger_0 = Affine3d::Identity();
 
 	VectorXd one_finger_computed_torques =  VectorXd::Zero(robot_dof); 
@@ -129,12 +166,22 @@ int main() {
 	redis_client.createReadCallback(0);
 	redis_client.createWriteCallback(0);
 
-	// Objects to read from redis
-    redis_client.addEigenToReadCallback(0, JOINT_ANGLES_KEY, robot->_q);
-    redis_client.addEigenToReadCallback(0, JOINT_VELOCITIES_KEY, robot->_dq);
 	
-	// Objects to write to redis
-	redis_client.addEigenToWriteCallback(0, ROBOT_COMMAND_TORQUES_KEY, command_torques);
+	if (flag_simulation){
+		// Objects to read from redis
+		redis_client.addEigenToReadCallback(0, JOINT_ANGLES_SIM_KEY, robot->_q);
+		redis_client.addEigenToReadCallback(0, JOINT_VELOCITIES_SIM_KEY, robot->_dq);
+		
+		// Objects to write to redis
+		redis_client.addEigenToWriteCallback(0, ROBOT_COMMAND_TORQUES_SIM_KEY, command_torques);
+	} else {
+		// Objects to read from redis
+		redis_client.addEigenToReadCallback(0, JOINT_ANGLES_KEY, robot->_q);
+		redis_client.addEigenToReadCallback(0, JOINT_VELOCITIES_KEY, robot->_dq);
+		
+		// Objects to write to redis
+		redis_client.addEigenToWriteCallback(0, ROBOT_COMMAND_TORQUES_KEY, command_torques);
+	}
 
 	// setup data logging
 	string folder = "";
@@ -176,6 +223,7 @@ int main() {
 	// double dt = 0;
 	bool fTimerDidSleep = true;
 	double start_time = timer.elapsedTime(); //secs
+	prev_time = start_time;
 
 	while (runloop) {
 		// wait for next scheduled loop
@@ -185,13 +233,7 @@ int main() {
 		// read robot state
 		redis_client.executeReadCallback(0);
 
-		if(flag_simulation) {
-			robot->updateModel();
-		}
-		else {
-			robot->updateKinematics();
-			robot->updateInverseInertia();
-		}
+		robot->updateModel();
 
 		// Set Task Hirearchy
 		N_prec.setIdentity(robot_dof,robot_dof);
@@ -212,9 +254,19 @@ int main() {
 			robot->gravityVector(g);
 			all_pos_task_torques = VectorXd::Zero(robot_dof); 
 
+			if (current_time - prev_time > 2.25){
+				current_finger_idx += 1;
+				prev_time = current_time;
+			}
+
 			for (int i = 0; i < 4; i++){
 				finger_pos_tasks[i]->updateTaskModel(N_prec);
-            	finger_pos_tasks[i]->_desired_position << finger_target_positions[i];
+				if (current_finger_idx > i){
+					finger_pos_tasks[i]->_desired_position << finger_target_positions[i];
+				} else {
+					finger_pos_tasks[i]->_desired_position << finger_current_positions[i];
+				}
+            	
 				robot->Jv(finger_task_Jacobian, fingertip_link_names[i], fingertip_pos_in_link);
 				combined_task_Jacobian.block(i*3, 0, 3, robot_dof) = finger_task_Jacobian;
 			}
@@ -235,7 +287,7 @@ int main() {
 				cout << "setting torques to zero for this control cycle" << endl;
 				cout << endl;
 			}
-			command_torques = all_pos_task_torques + N_task * (robot->_M * (-kpj * (robot->_q - q_mid) - kvj * robot->_dq));
+			command_torques = all_pos_task_torques + N_task * (robot->_M * (-kpj * (robot->_q - q_mid) - kvj * robot->_dq)) + g;
             // cout<<"commanded torque" << endl << command_torques << endl;
 		}
 		// write control torques
@@ -260,7 +312,12 @@ int main() {
 
 	//// Send zero force/torque to robot ////
 	command_torques.setZero();
-	redis_client.setEigenMatrixJSON(ROBOT_COMMAND_TORQUES_KEY, command_torques);
+	if (flag_simulation){
+		redis_client.setEigenMatrixJSON(ROBOT_COMMAND_TORQUES_SIM_KEY, command_torques);	
+	} else {
+		redis_client.setEigenMatrixJSON(ROBOT_COMMAND_TORQUES_KEY, command_torques);	
+	}
+	
 
 
 	double end_time = timer.elapsedTime();

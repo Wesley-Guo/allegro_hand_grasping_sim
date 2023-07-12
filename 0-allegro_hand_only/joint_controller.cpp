@@ -96,8 +96,8 @@ int main() {
     // upper and lower limits
     finger_joint_angle_upper << 0.57181227113054078, 1.7367399715833842, 1.8098808147084331, 1.71854352396125431;
     finger_joint_angle_lower << -0.59471316618668479, -0.29691276729768068, -0.27401187224153672, -0.32753605719833834;
-    thumb_joint_angle_upper << 1.4968131524486665, 1.2630997544532125, 1.7440185506322363, 1.8199110516903878;
-    thumb_joint_angle_lower << 0.3635738998060688, -0.20504289759570773, -0.28972295140796106, -0.26220637207693537;
+    thumb_joint_angle_upper << 1.3968131524486665, 1.1630997544532125, 1.6440185506322363, 1.7199110516903878;
+    thumb_joint_angle_lower << 0.2635738998060688, -0.10504289759570773, -0.18972295140796106, -0.16220637207693537;
 
 
 	robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
@@ -147,7 +147,7 @@ int main() {
 
 	// setup data logging
 	string folder = "";
-	string filename = "kinematic_characterization_finger_3";
+	string filename = "kinematic_characterization_finger_4_1";
     auto logger = new Logging::Logger(10000, folder + filename);
 	
 
@@ -167,7 +167,7 @@ int main() {
 	double start_time = timer.elapsedTime(); //secs
     prev_time = start_time;
 
-    MatrixXd joint_grids = GenerateJointGrid(finger_joint_angle_lower, finger_joint_angle_upper);
+    MatrixXd joint_grids = GenerateJointGrid(thumb_joint_angle_lower, thumb_joint_angle_upper);
     int current_config_idx = 0;
     int max_configurations = joint_grids.rows();
 	while (runloop) {
@@ -196,7 +196,7 @@ int main() {
 		if(state == INIT) {
 			if (current_time - prev_time < 2.25){
                 joint_task->_desired_position = robot->_q;
-                joint_task->_desired_position.segment(8, 4) = finger_joint_angle_lower;
+                joint_task->_desired_position.segment(12, 4) = thumb_joint_angle_upper;
                 joint_task->computeTorques(joint_task_torques);
 			    command_torques = joint_task_torques + gravity;
             } else {
@@ -207,18 +207,18 @@ int main() {
 		}
 
 		else if(state == CONTROL) {
-            if (current_time - prev_time > 0.1){
-                robot->position(finger_tip_pos, "link_11_tip", fingertip_pos_in_link);
+            if (current_time - prev_time > 0.25){
+                robot->position(finger_tip_pos, "link_15_tip", fingertip_pos_in_link);
                 log_finger_tip = finger_tip_pos;
                 logger->log();
                 if (current_config_idx < max_configurations){
-                    joint_task->_desired_position.segment(8, 4) = joint_grids.row(current_config_idx);
+                    joint_task->_desired_position.segment(12, 4) = joint_grids.row(current_config_idx);
                     current_config_idx++;
                 }
                 prev_time = current_time;
             }
 			joint_task->computeTorques(joint_task_torques);
-			command_torques = joint_task_torques;		
+			command_torques = joint_task_torques + gravity;		
 		}
 
 		// write control torques
