@@ -122,11 +122,11 @@ int main() {
 	auto joint_task = new Sai2Primitives::JointTask(robot);
 	joint_task->_use_interpolation_flag = false;
 	joint_task->_use_velocity_saturation_flag = true;
-	joint_task->setDynamicDecouplingFull();
+	joint_task->setDynamicDecouplingNone();
 
 	VectorXd joint_task_torques = VectorXd::Zero(robot_dof);
-	joint_task->_kp = 50.0;
-	joint_task->_kv = 13.0;
+	joint_task->_kp = 5.0;
+	joint_task->_kv = 0.09;
 	joint_task->_ki = 0.0;
 
 	Eigen::VectorXd g(robot_dof); //joint space gravity vector
@@ -167,7 +167,7 @@ int main() {
 	double start_time = timer.elapsedTime(); //secs
     prev_time = start_time;
 
-    MatrixXd joint_grids = GenerateJointGrid(thumb_joint_angle_lower, thumb_joint_angle_upper);
+    MatrixXd joint_grids = GenerateJointGrid(finger_joint_angle_lower, finger_joint_angle_upper);
     int current_config_idx = 0;
     int max_configurations = joint_grids.rows();
 	while (runloop) {
@@ -196,9 +196,9 @@ int main() {
 		if(state == INIT) {
 			if (current_time - prev_time < 2.25){
                 joint_task->_desired_position = robot->_q;
-                joint_task->_desired_position.segment(12, 4) = thumb_joint_angle_upper;
+                joint_task->_desired_position.segment(0, 4) = finger_joint_angle_upper;
                 joint_task->computeTorques(joint_task_torques);
-			    command_torques = joint_task_torques + gravity;
+			    command_torques = joint_task_torques;
             } else {
                 state = CONTROL;
                 cout << "joint position: " << robot->_q << endl;
@@ -208,17 +208,17 @@ int main() {
 
 		else if(state == CONTROL) {
             if (current_time - prev_time > 0.25){
-                robot->position(finger_tip_pos, "link_15_tip", fingertip_pos_in_link);
+                robot->position(finger_tip_pos, "link_3_tip", fingertip_pos_in_link);
                 log_finger_tip = finger_tip_pos;
                 logger->log();
                 if (current_config_idx < max_configurations){
-                    joint_task->_desired_position.segment(12, 4) = joint_grids.row(current_config_idx);
+                    joint_task->_desired_position.segment(0, 4) = joint_grids.row(current_config_idx);
                     current_config_idx++;
                 }
                 prev_time = current_time;
             }
 			joint_task->computeTorques(joint_task_torques);
-			command_torques = joint_task_torques + gravity;		
+			command_torques = joint_task_torques;		
 		}
 
 		// write control torques
