@@ -358,7 +358,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		
 		robot->gravityVector(g);
 	
-		sim->setJointTorques(robot_name, robot->_M *  command_torques + g);
+		sim->setJointTorques(robot_name, command_torques + g);
 
 		// integrate forward
 		double curr_time = timer.elapsedTime();
