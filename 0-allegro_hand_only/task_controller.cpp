@@ -100,7 +100,12 @@ int main() {
 	joint_task->_kv = 14.0;
 	joint_task->_ki = 0.0;
 
-    double kpj = 5.0;
+	double kpj = 0.0;
+	if (flag_simulation){
+		kpj = 50.0;	
+	} else {
+		kpj = 5.0;
+	}
     double kvj = 25.0;
 
 	Eigen::VectorXd g(robot_dof); //joint space gravity vector
@@ -114,25 +119,31 @@ int main() {
 
 	// define tasks for each fingertip
     // TODO: make this shapred_ptr
+	double POSITION_GAIN = 0.0;
+	if (flag_simulation){
+		POSITION_GAIN = 50.0;
+	} else {
+		POSITION_GAIN = 7500.0;
+	}
 	auto finger_pos_task_0 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[0], fingertip_pos_in_link);
 	finger_pos_task_0->_use_velocity_saturation_flag = false;
 	finger_pos_task_0->_saturation_velocity = 1.0;
-	finger_pos_task_0->_kp = 7500.0;
+	finger_pos_task_0->_kp = POSITION_GAIN;
 	finger_pos_task_0->_kv = 15.0;
     auto finger_pos_task_1 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[1], fingertip_pos_in_link);
 	finger_pos_task_1->_use_velocity_saturation_flag = false;
 	finger_pos_task_1->_saturation_velocity = 1.0;
-	finger_pos_task_1->_kp = 7500.0;
+	finger_pos_task_1->_kp = POSITION_GAIN;
 	finger_pos_task_1->_kv = 15.0;
     auto finger_pos_task_2 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[2], fingertip_pos_in_link);
 	finger_pos_task_2->_use_velocity_saturation_flag = false;
 	finger_pos_task_2->_saturation_velocity = 1.0;
-	finger_pos_task_2->_kp = 7500.0;
+	finger_pos_task_2->_kp = POSITION_GAIN;
 	finger_pos_task_2->_kv = 15.0;
     auto finger_pos_task_3 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[3], fingertip_pos_in_link);
 	finger_pos_task_3->_use_velocity_saturation_flag = false;
 	finger_pos_task_3->_saturation_velocity = 1.0;
-	finger_pos_task_3->_kp = 7500.0;
+	finger_pos_task_3->_kp = POSITION_GAIN;
 	finger_pos_task_3->_kv = 15.0;
 
 	std::vector<Sai2Primitives::PositionTask*> finger_pos_tasks;
@@ -143,13 +154,13 @@ int main() {
 
 	std::vector<Eigen::Vector3d> finger_target_positions;
 	Eigen::Vector3d finger_position_desired = Eigen::Vector3d::Zero();
-	finger_position_desired << 0.083392, 0.0372761, -0.0577813;
+	finger_position_desired << 0.08, 0.05, -0.02;
 	finger_target_positions.push_back(finger_position_desired);
-	finger_position_desired << 0.08068, 0.0, -0.0433452;
+	finger_position_desired << 0.08, 0.0, -0.02;
 	finger_target_positions.push_back(finger_position_desired);
-	finger_position_desired << 0.087747, -0.050996, -0.0295742;
+	finger_position_desired << 0.08, -0.04, -0.02;
 	finger_target_positions.push_back(finger_position_desired);
-	finger_position_desired << 0.083392, 0.1272761, -0.0577813;
+	finger_position_desired << 0.08, 0.09, 0.02;
 	finger_target_positions.push_back(finger_position_desired);
 
 	std::vector<Eigen::Vector3d> finger_current_positions;
@@ -260,14 +271,15 @@ int main() {
 		else if(state == CONTROL) {
 			all_pos_task_torques = VectorXd::Zero(robot_dof); 
 
-			if (current_time - prev_time > 2.25){
+			if (current_time - prev_time > 3.25){
 				current_finger_idx += 1;
+				current_finger_idx = current_finger_idx % 4;
 				prev_time = current_time;
 			}
 
 			for (int i = 0; i < 4; i++){
 				finger_pos_tasks[i]->updateTaskModel(N_prec);
-				if (current_finger_idx > i){
+				if (current_finger_idx == i){
 					finger_pos_tasks[i]->_desired_position << finger_target_positions[i];
 				} else {
 					finger_pos_tasks[i]->_desired_position << finger_current_positions[i];
