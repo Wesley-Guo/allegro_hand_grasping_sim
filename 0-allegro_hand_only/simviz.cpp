@@ -55,7 +55,7 @@ const string robot_file = "./resources/allegro_hand.urdf";
 const string robot_name = "allegro";
 const string camera_name = "camera";
 const string base_link_name = "palm_link";
-const string hand_ee_link_names[] = {"link_3_tip", "link_7_tip", "link_11_tip", "link_15_tip"};
+const string hand_ee_link_names[] = {"link_3.0_tip", "link_7.0_tip", "link_11.0_tip", "link_15.0_tip"};
 const Vector3d hand_ee_pos_in_link = Vector3d(0.0,0.0,0.035);
 
 // redis keys:
