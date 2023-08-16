@@ -51,7 +51,7 @@ const string fingertip_link_names[] = {"link_3_tip", "link_7_tip", "link_11_tip"
 const Vector3d fingertip_pos_in_link = Vector3d(0.0,0.0,0.035);
 
 // const bool flag_simulation = false;
-const bool flag_simulation = true;
+const bool flag_simulation = false;
 
 int main() {
 	// start redis client local
@@ -85,7 +85,7 @@ int main() {
 	MatrixXd finger_task_Jacobian = MatrixXd::Zero(3,robot_dof);
 	MatrixXd combined_task_Jacobian = MatrixXd::Zero(3 * 4,robot_dof);
     VectorXd q_mid = VectorXd::Zero(robot_dof);
-    q_mid << -0.2, 0.2, -0.2, -0.2, -0.2, 0.2, -0.2, -0.2, -0.2, 0.2, -0.2, -0.2, 0.2, -0.1, -0.1, -0.1;
+    q_mid << -0.2, 0.0, 0.0, 0.0, -0.2, 0.0, 0.0, 0.0, -0.2, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5;
 
 	// controller_state
 	int state = INIT;
@@ -103,11 +103,11 @@ int main() {
 
 	double kpj = 0.0;
 	if (flag_simulation){
-		kpj = 50.0;	
+		kpj = 0.025;	
 	} else {
-		kpj = 5.0;
+		kpj = 0.25;
 	}
-    double kvj = 45.0;
+    double kvj = 0.01;
 
 	Eigen::VectorXd g(robot_dof); //joint space gravity vector
     joint_task->_desired_position = robot->_q; // use current robot config as init config
@@ -122,28 +122,28 @@ int main() {
     // TODO: make this shapred_ptr
 	double POSITION_GAIN = 0.0;
 	if (flag_simulation){
-		POSITION_GAIN = 500.0;
+		POSITION_GAIN = 150.0;
 	} else {
-		POSITION_GAIN = 7500.0;
+		POSITION_GAIN = 12500.0;
 	}
 	auto finger_pos_task_0 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[0], fingertip_pos_in_link);
-	finger_pos_task_0->_use_velocity_saturation_flag = true;
-	finger_pos_task_0->_saturation_velocity = 0.5;
+	finger_pos_task_0->_use_velocity_saturation_flag = false;
+	finger_pos_task_0->_saturation_velocity = 1.25;
 	finger_pos_task_0->_kp = POSITION_GAIN;
 	finger_pos_task_0->_kv = 15.0;
     auto finger_pos_task_1 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[1], fingertip_pos_in_link);
-	finger_pos_task_1->_use_velocity_saturation_flag = true;
-	finger_pos_task_1->_saturation_velocity = 0.5;
+	finger_pos_task_1->_use_velocity_saturation_flag = false;
+	finger_pos_task_1->_saturation_velocity = 1.25;
 	finger_pos_task_1->_kp = POSITION_GAIN;
 	finger_pos_task_1->_kv = 15.0;
     auto finger_pos_task_2 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[2], fingertip_pos_in_link);
-	finger_pos_task_2->_use_velocity_saturation_flag = true;
-	finger_pos_task_2->_saturation_velocity = 0.5;
+	finger_pos_task_2->_use_velocity_saturation_flag = false;
+	finger_pos_task_2->_saturation_velocity = 1.25;
 	finger_pos_task_2->_kp = POSITION_GAIN;
 	finger_pos_task_2->_kv = 15.0;
     auto finger_pos_task_3 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[3], fingertip_pos_in_link);
-	finger_pos_task_3->_use_velocity_saturation_flag = true;
-	finger_pos_task_3->_saturation_velocity = 0.5;
+	finger_pos_task_3->_use_velocity_saturation_flag = false;
+	finger_pos_task_3->_saturation_velocity = 1.25;
 	finger_pos_task_3->_kp = POSITION_GAIN;
 	finger_pos_task_3->_kv = 15.0;
 
@@ -173,7 +173,6 @@ int main() {
 	robot->position(finger_current_position, fingertip_link_names[2], fingertip_pos_in_link);
 	finger_current_positions.push_back(finger_current_position);
 	robot->position(finger_current_position, fingertip_link_names[3], fingertip_pos_in_link);
-	finger_current_position << 0.08, 0.05, -0.02;
 	finger_current_positions.push_back(finger_current_position);
 
 	int current_finger_idx = 0;
@@ -261,6 +260,7 @@ int main() {
         N_task.setIdentity(robot_dof,robot_dof);
 
 		if(state == INIT) {
+			robot->_M = Eigen::MatrixXd::Identity(robot->dof(), robot->dof());
             joint_task->updateTaskModel(N_prec);
 
 			joint_task->computeTorques(joint_task_torques);
@@ -280,7 +280,9 @@ int main() {
 			}
 
 			for (int i = 0; i < 4; i++){
+				robot->_M = Eigen::MatrixXd::Identity(robot->dof(), robot->dof());
 				finger_pos_tasks[i]->updateTaskModel(N_prec);
+
 				if (current_finger_idx == i){
 					finger_pos_tasks[i]->_desired_position << finger_target_positions[i];
 				} else {
@@ -307,9 +309,9 @@ int main() {
 				cout << "setting torques to zero for this control cycle" << endl;
 				cout << endl;
 			}
-			command_torques = all_pos_task_torques + N_task * robot->_M *  (-kpj * (robot->_q - q_mid) - kvj * robot->_dq);			
+			command_torques = all_pos_task_torques + N_task *  (-kpj * (robot->_q - q_mid) - kvj * robot->_dq);			
             cout<<"commanded operational torques: " << endl << all_pos_task_torques << endl;
-			cout<<"commanded posture torques: " << endl << N_task * (robot->_M * (-kpj * (robot->_q - q_mid) - kvj * robot->_dq)) << endl;
+			cout<<"commanded posture torques: " << endl << N_task * (-kpj * (robot->_q - q_mid) - kvj * robot->_dq) << endl;
 		}
 
 		// Torque saturation
