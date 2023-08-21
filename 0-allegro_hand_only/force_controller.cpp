@@ -107,7 +107,7 @@ int main() {
 	double TASK_FORCE_GAIN = 1.0;
 
 	double POSTURE_POSITION_GAIN = 0.0;
-	double POSTURE_VELOCITY_GAIN = 0.0;
+	double POSTURE_VELOCITY_GAIN = 0.01;
 	
 
 	Eigen::VectorXd g(robot_dof); //joint space gravity vector
@@ -241,8 +241,9 @@ int main() {
 				cout << endl;
 			}
 
-			combined_task_Jacobian_pseudo_inv = combined_task_Jacobian.transpose() * (combined_task_Jacobian * combined_task_Jacobian.transpose()).inverse();
-			N_task = MatrixXd::Identity(robot_dof, robot_dof) - combined_task_Jacobian.transpose() * combined_task_Jacobian_pseudo_inv.transpose();
+			// combined_task_Jacobian_pseudo_inv = combined_task_Jacobian.transpose() * (combined_task_Jacobian * combined_task_Jacobian.transpose()).inverse();
+			// N_task = MatrixXd::Identity(robot_dof, robot_dof) - combined_task_Jacobian.transpose() * combined_task_Jacobian_pseudo_inv.transpose();
+			robot->nullspaceMatrix(N_task, combined_task_Jacobian);
 
 			command_torques = all_pos_task_torques + N_task *  (-POSTURE_POSITION_GAIN * (robot->_q - q_mid) - POSTURE_VELOCITY_GAIN * robot->_dq);			
             cout<<"commanded operational torques: " << endl << all_pos_task_torques << endl;
