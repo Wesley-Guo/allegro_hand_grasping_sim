@@ -102,13 +102,16 @@ int main() {
 	joint_task->_kv = 14.0;
 	joint_task->_ki = 0.0;
 
-	double TASK_POSITION_GAIN = 1.0;
-	double TASK_VELOCITY_GAIN = 0.35;
+	double TASK_POSITION_GAIN = 300.0;
+	double TASK_VELOCITY_GAIN = 5.0;
 
 	double POSTURE_POSITION_GAIN = 0.35;
 	double POSTURE_VELOCITY_GAIN = 0.01;
+
+	double V_MAX = 0.5;
+
 	if (!flag_simulation){
-		TASK_POSITION_GAIN = 1.0;
+		TASK_POSITION_GAIN = 300.0;
 	} 
 
 	Eigen::VectorXd g(robot_dof); //joint space gravity vector
@@ -247,6 +250,7 @@ int main() {
 					Vector3d desired_position = Vector3d::Zero();
 					Vector3d current_position = Vector3d::Zero();
 					Vector3d current_velocity = Vector3d::Zero();
+					Vector3d desired_velocity = Vector3d::Zero();
 					Vector3d finger_task_force = Vector3d::Zero();
 					VectorXd finger_torques =  VectorXd::Zero(robot_dof);
 
@@ -261,7 +265,11 @@ int main() {
 					robot->Jv(finger_task_Jacobian, fingertip_link_names[i], fingertip_pos_in_link);
 					combined_task_Jacobian.block(i*3, 0, 3, robot_dof) = finger_task_Jacobian;
 
-					finger_task_force = - TASK_POSITION_GAIN * (current_position - desired_position) - TASK_VELOCITY_GAIN * (current_velocity);
+					desired_velocity = - TASK_POSITION_GAIN / TASK_VELOCITY_GAIN * (current_position - desired_position); 
+					if(desired_velocity.norm() > V_MAX){
+						desired_velocity *= V_MAX / desired_velocity.norm();
+					}					
+					finger_task_force = - TASK_VELOCITY_GAIN * (current_velocity - desired_velocity);
 					finger_torques = finger_task_Jacobian.transpose() * finger_task_force; 
 
 					all_pos_task_torques += finger_torques; // each pos task generates torques for all joints, with only the relevant finger joints being nonzero
