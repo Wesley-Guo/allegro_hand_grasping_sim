@@ -87,7 +87,7 @@ int main() {
 	MatrixXd combined_task_Jacobian = MatrixXd::Zero(3 * 4, robot_dof);
 	MatrixXd combined_task_Jacobian_pseudo_inv = MatrixXd::Zero(robot_dof, 3 * 4);
     VectorXd q_mid = VectorXd::Zero(robot_dof);
-    q_mid << -0.2, 0.0, 0.0, 0.0, -0.2, 0.0, 0.0, 0.0, -0.2, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5;
+    q_mid << -0.2, 0.0, 0.0, 0.0, -0.2, 0.0, 0.0, 0.0, -0.2, 0.0, 0.0, 0.0, -0.75, 0.5, 0.5, 0.5;
 
 	// controller_state
 	int state = INIT;
