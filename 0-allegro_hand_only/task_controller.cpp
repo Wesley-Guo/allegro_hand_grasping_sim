@@ -51,7 +51,7 @@ const string fingertip_link_names[] = {"link_3_tip", "link_7_tip", "link_11_tip"
 const Vector3d fingertip_pos_in_link = Vector3d(0.0,0.0,0.035);
 
 // const bool flag_simulation = false;
-const bool flag_simulation = true;
+const bool flag_simulation = false;
 
 int main() {
 	// start redis client local
@@ -108,10 +108,14 @@ int main() {
 	double POSTURE_POSITION_GAIN = 0.35;
 	double POSTURE_VELOCITY_GAIN = 0.01;
 
-	double V_MAX = 0.5;
+	double V_MAX = 1.00;
 
 	if (!flag_simulation){
-		TASK_POSITION_GAIN = 300.0;
+		TASK_POSITION_GAIN = 250.0;
+		TASK_VELOCITY_GAIN = 2.0;
+
+		POSTURE_POSITION_GAIN = 0.15;
+	    POSTURE_VELOCITY_GAIN = 0.005;
 	} 
 
 	Eigen::VectorXd g(robot_dof); //joint space gravity vector
