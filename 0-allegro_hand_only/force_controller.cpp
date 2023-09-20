@@ -52,7 +52,8 @@ const string fingertip_link_names[] = {"link_3.0_tip", "link_7.0_tip", "link_11.
 const Vector3d fingertip_pos_in_link = Vector3d(0.0,0.0,0.035);
 
 // const bool flag_simulation = false;
-const bool flag_simulation = true;
+const bool flag_simulation = false;
+const int FORCE_SCALE = 2.0;
 
 int main() {
 	// start redis client local
@@ -228,7 +229,7 @@ int main() {
                     VectorXd finger_torques = VectorXd::Zero(robot_dof);
 					robot->Jv(finger_task_Jacobian, fingertip_link_names[i], fingertip_pos_in_link);
 					combined_task_Jacobian.block(i*3, 0, 3, robot_dof) = finger_task_Jacobian;
-					finger_torques = finger_task_Jacobian.transpose() * finger_target_forces.segment(i*3, 3); 
+					finger_torques = finger_task_Jacobian.transpose() * FORCE_SCALE * finger_target_forces.segment(i*3, 3); 
 
 					all_pos_task_torques += finger_torques; // each pos task generates torques for all joints, with only the relevant finger joints being nonzero
 				}
