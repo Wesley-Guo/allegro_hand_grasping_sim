@@ -14,6 +14,7 @@
 #include <string>
 #include <random>
 #include <queue>
+#include <boost/algorithm/clamp.hpp>
 
 #define INIT            0
 #define CONTROL         1
@@ -80,12 +81,13 @@ int main() {
 
 	VectorXd command_torques = VectorXd::Zero(robot_dof);
 	VectorXd robot_coriolis = VectorXd::Zero(robot_dof);
-	MatrixXd N_prec = MatrixXd::Identity(robot_dof,robot_dof);
-    MatrixXd N_task = MatrixXd::Identity(robot_dof,robot_dof);
-	MatrixXd finger_task_Jacobian = MatrixXd::Zero(3,robot_dof);
-	MatrixXd combined_task_Jacobian = MatrixXd::Zero(3 * 4,robot_dof);
+	MatrixXd N_prec = MatrixXd::Identity(robot_dof, robot_dof);
+    MatrixXd N_task = MatrixXd::Identity(robot_dof, robot_dof);
+	MatrixXd finger_task_Jacobian = MatrixXd::Zero(3, robot_dof);
+	MatrixXd combined_task_Jacobian = MatrixXd::Zero(3 * 4, robot_dof);
+	MatrixXd combined_task_Jacobian_pseudo_inv = MatrixXd::Zero(robot_dof, 3 * 4);
     VectorXd q_mid = VectorXd::Zero(robot_dof);
-    q_mid << 0, 0.7, 0.75, 0.7, 0, 0.7, 0.75, 0.7, 0, 0.7, 0.75, 0.7, -0.825, 0.525, 0.725, 0.775;
+    q_mid << -0.2, 0.0, 0.0, 0.0, -0.2, 0.0, 0.0, 0.0, -0.2, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5;
 
 	// controller_state
 	int state = INIT;
@@ -101,13 +103,21 @@ int main() {
 	joint_task->_kv = 25.0;
 	joint_task->_ki = 0.0;
 
-	double kpj = 0.0;
-	if (flag_simulation){
-		kpj = 35.0;	
-	} else {
-		kpj = 5.0;
-	}
-    double kvj = 15.0;
+	double TASK_POSITION_GAIN = 300.0;
+	double TASK_VELOCITY_GAIN = 5.0;
+
+	double POSTURE_POSITION_GAIN = 0.35;
+	double POSTURE_VELOCITY_GAIN = 0.01;
+
+	double V_MAX = 1.00;
+
+	if (!flag_simulation){
+		TASK_POSITION_GAIN = 250.0;
+		TASK_VELOCITY_GAIN = 2.0;
+
+		POSTURE_POSITION_GAIN = 0.15;
+	    POSTURE_VELOCITY_GAIN = 0.005;
+	} 
 
 	Eigen::VectorXd g(robot_dof); //joint space gravity vector
     joint_task->_desired_position = robot->_q; // use current robot config as init config
@@ -117,45 +127,19 @@ int main() {
 		redis_client.setEigenMatrixJSON(JOINT_ANGLES_DESIRED_KEY, robot->_q);
 	}
 	
+	std::vector<Eigen::Vector3d> finger_target_positions;
+	Eigen::Vector3d finger_position_desired = Eigen::Vector3d::Zero();
+	finger_position_desired << 0.08, 0.05, -0.02;
+	finger_target_positions.push_back(finger_position_desired);
+	finger_position_desired << 0.08, 0.0, -0.02;
+	finger_target_positions.push_back(finger_position_desired);
+	finger_position_desired << 0.08, -0.04, -0.02;
+	finger_target_positions.push_back(finger_position_desired);
+	finger_position_desired << 0.08, 0.05, -0.02;
+	finger_target_positions.push_back(finger_position_desired);
 
-	// define tasks for each fingertip
-    // TODO: make this shapred_ptr
-	double POSITION_GAIN = 0.0;
-	if (flag_simulation){
-		POSITION_GAIN = 150.0;
-	} else {
-		POSITION_GAIN = 10000.0;
-	}
-	auto finger_pos_task_0 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[0], fingertip_pos_in_link);
-	finger_pos_task_0->_use_velocity_saturation_flag = false;
-	finger_pos_task_0->_saturation_velocity = 0.25;
-	finger_pos_task_0->_kp = POSITION_GAIN;
-	finger_pos_task_0->_kv = 25.0;
-    auto finger_pos_task_1 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[1], fingertip_pos_in_link);
-	finger_pos_task_1->_use_velocity_saturation_flag = false;
-	finger_pos_task_1->_saturation_velocity = 0.25;
-	finger_pos_task_1->_kp = POSITION_GAIN;
-	finger_pos_task_1->_kv = 25.0;
-    auto finger_pos_task_2 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[2], fingertip_pos_in_link);
-	finger_pos_task_2->_use_velocity_saturation_flag = false;
-	finger_pos_task_2->_saturation_velocity = 0.25;
-	finger_pos_task_2->_kp = POSITION_GAIN;
-	finger_pos_task_2->_kv = 25.0;
-    auto finger_pos_task_3 = new Sai2Primitives::PositionTask(robot, fingertip_link_names[3], fingertip_pos_in_link);
-	finger_pos_task_3->_use_velocity_saturation_flag = false;
-	finger_pos_task_3->_saturation_velocity = 0.25;
-	finger_pos_task_3->_kp = POSITION_GAIN;
-	finger_pos_task_3->_kv = 25.0;
-
-	std::vector<Sai2Primitives::PositionTask*> finger_pos_tasks;
-    finger_pos_tasks.push_back(finger_pos_task_0);
-    finger_pos_tasks.push_back(finger_pos_task_1);
-    finger_pos_tasks.push_back(finger_pos_task_2);
-    finger_pos_tasks.push_back(finger_pos_task_3);
-
-	VectorXd finger_current_positions = VectorXd::Zero(4 * 3);
-	Vector3d finger_current_position = Vector3d::Zero();
-
+	std::vector<Eigen::Vector3d> finger_current_positions;
+	Eigen::Vector3d finger_current_position = Eigen::Vector3d::Zero();
 	robot->position(finger_current_position, fingertip_link_names[0], fingertip_pos_in_link);
 	std::cout << "finger_current_position: " << finger_current_position << std::endl;
 	finger_current_positions.segment(0, 3) << finger_current_position;
@@ -166,14 +150,8 @@ int main() {
 	std::cout << "finger_current_position: " << finger_current_position << std::endl;
 	finger_current_positions.segment(6, 3) << finger_current_position;
 	robot->position(finger_current_position, fingertip_link_names[3], fingertip_pos_in_link);
-	std::cout << "finger_current_position: " << finger_current_position << std::endl;
-	finger_current_positions.segment(9, 3) << finger_current_position;
-
-	std::cout << "finger_current_positions: " << finger_current_positions << std::endl;
-	
-	redis_client.setEigenMatrixJSON(FINGERTIP_POSITION_KEY, finger_current_positions);
-
-	VectorXd finger_target_positions = VectorXd::Zero(4 * 3);
+	finger_current_position << 0.08, 0.05, -0.02;
+	finger_current_positions.push_back(finger_current_position);
 
 	finger_target_positions = redis_client.getEigenMatrixJSON(FINGERTIP_POSITION_KEY);
 
@@ -211,7 +189,6 @@ int main() {
     Vector3d finger_tip_pos  = Vector3d::Zero();
     Vector3d finger_tip_vel  = Vector3d::Zero();
     robot->position(finger_tip_pos, fingertip_link_names[0], fingertip_pos_in_link);
-
     robot->linearVelocity(finger_tip_vel, fingertip_link_names[0], fingertip_pos_in_link);
 
 	Vector3d log_finger_tip_position = finger_tip_pos;
@@ -258,7 +235,6 @@ int main() {
 
 		// Set Task Hirearchy
 		N_prec.setIdentity(robot_dof,robot_dof);
-        N_task.setIdentity(robot_dof,robot_dof);
 
 		if(state == INIT) {
             joint_task->updateTaskModel(N_prec);
@@ -273,20 +249,34 @@ int main() {
 		else if(state == CONTROL) {
 			all_pos_task_torques = VectorXd::Zero(robot_dof); 
 
-			for (int i = 0; i < 4; i++){
-				finger_pos_tasks[i]->updateTaskModel(N_prec);
-				finger_pos_tasks[i]->_desired_position << finger_target_positions.segment(i * 3, 3);
-				robot->Jv(finger_task_Jacobian, fingertip_link_names[i], fingertip_pos_in_link);
-				combined_task_Jacobian.block(i*3, 0, 3, robot_dof) = finger_task_Jacobian;
-			}
-
-		    robot->nullspaceMatrix(N_task, combined_task_Jacobian);
-
 			try	{
 				for (int i = 0; i < 4; i++) {
-					finger_pos_tasks[i]->computeTorques(one_finger_computed_torques);
-					all_pos_task_torques += one_finger_computed_torques; // each pos task generates torques for all joints, with only the relevant finger joints being nonzero
-					// cout<<"one finger task torque" << endl << one_finger_computed_torques << endl;
+					Vector3d desired_position = Vector3d::Zero();
+					Vector3d current_position = Vector3d::Zero();
+					Vector3d current_velocity = Vector3d::Zero();
+					Vector3d desired_velocity = Vector3d::Zero();
+					Vector3d finger_task_force = Vector3d::Zero();
+					VectorXd finger_torques =  VectorXd::Zero(robot_dof);
+
+					if (current_finger_idx == i){
+						desired_position << finger_target_positions[i];
+					} else {
+						desired_position << finger_current_positions[i];
+					}
+
+					robot->position(current_position, fingertip_link_names[i], fingertip_pos_in_link);
+    				robot->linearVelocity(current_velocity, fingertip_link_names[i], fingertip_pos_in_link);
+					robot->Jv(finger_task_Jacobian, fingertip_link_names[i], fingertip_pos_in_link);
+					combined_task_Jacobian.block(i*3, 0, 3, robot_dof) = finger_task_Jacobian;
+
+					desired_velocity = - TASK_POSITION_GAIN / TASK_VELOCITY_GAIN * (current_position - desired_position); 
+					if(desired_velocity.norm() > V_MAX){
+						desired_velocity *= V_MAX / desired_velocity.norm();
+					}					
+					finger_task_force = - TASK_VELOCITY_GAIN * (current_velocity - desired_velocity);
+					finger_torques = finger_task_Jacobian.transpose() * finger_task_force; 
+
+					all_pos_task_torques += finger_torques; // each pos task generates torques for all joints, with only the relevant finger joints being nonzero
 				}
 			}
 			catch(exception e) {
@@ -298,6 +288,7 @@ int main() {
 			}
 			command_torques = all_pos_task_torques + N_task * robot->_M *  (-kpj * (robot->_q - q_mid) - kvj * robot->_dq);			
 		}
+
 		// write control torques
 		redis_client.executeWriteCallback(0);
 
