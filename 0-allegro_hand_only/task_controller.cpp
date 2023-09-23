@@ -103,13 +103,13 @@ int main() {
 	joint_task->_kv = 25.0;
 	joint_task->_ki = 0.0;
 
-	double TASK_POSITION_GAIN = 300.0;
-	double TASK_VELOCITY_GAIN = 5.0;
+	double TASK_POSITION_GAIN = 250.0;
+	double TASK_VELOCITY_GAIN = 2.0;
 
-	double POSTURE_POSITION_GAIN = 0.35;
-	double POSTURE_VELOCITY_GAIN = 0.01;
+	double POSTURE_POSITION_GAIN = 22.5;
+	double POSTURE_VELOCITY_GAIN = 12.5;
 
-	double V_MAX = 1.00;
+	double V_MAX = 0.15;
 
 	if (!flag_simulation){
 		TASK_POSITION_GAIN = 250.0;
@@ -137,6 +137,7 @@ int main() {
 	robot->position(finger_current_position, fingertip_link_names[2], fingertip_pos_in_link);
 	finger_current_positions.segment(6, 3) << finger_current_position;
 	robot->position(finger_current_position, fingertip_link_names[3], fingertip_pos_in_link);
+	finger_current_position << 0.08, 0.05, -0.02;
 	finger_current_positions.segment(9, 3) << finger_current_position;
 
 	std::cout << "finger_current_positions: " << finger_current_positions << std::endl;
