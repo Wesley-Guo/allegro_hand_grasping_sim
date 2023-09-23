@@ -52,7 +52,7 @@ const string fingertip_link_names[] = {"link_3.0_tip", "link_7.0_tip", "link_11.
 const Vector3d fingertip_pos_in_link = Vector3d(0.0,0.0,0.035);
 
 // const bool flag_simulation = false;
-const bool flag_simulation = false;
+const bool flag_simulation = true;
 
 int main() {
 	// start redis client local
@@ -127,31 +127,23 @@ int main() {
 		redis_client.setEigenMatrixJSON(JOINT_ANGLES_DESIRED_KEY, robot->_q);
 	}
 	
-	std::vector<Eigen::Vector3d> finger_target_positions;
-	Eigen::Vector3d finger_position_desired = Eigen::Vector3d::Zero();
-	finger_position_desired << 0.08, 0.05, -0.02;
-	finger_target_positions.push_back(finger_position_desired);
-	finger_position_desired << 0.08, 0.0, -0.02;
-	finger_target_positions.push_back(finger_position_desired);
-	finger_position_desired << 0.08, -0.04, -0.02;
-	finger_target_positions.push_back(finger_position_desired);
-	finger_position_desired << 0.08, 0.05, -0.02;
-	finger_target_positions.push_back(finger_position_desired);
+	VectorXd finger_current_positions = VectorXd::Zero(4 * 3);
+	Vector3d finger_current_position = Vector3d::Zero();
 
-	std::vector<Eigen::Vector3d> finger_current_positions;
-	Eigen::Vector3d finger_current_position = Eigen::Vector3d::Zero();
 	robot->position(finger_current_position, fingertip_link_names[0], fingertip_pos_in_link);
-	std::cout << "finger_current_position: " << finger_current_position << std::endl;
 	finger_current_positions.segment(0, 3) << finger_current_position;
 	robot->position(finger_current_position, fingertip_link_names[1], fingertip_pos_in_link);
-	std::cout << "finger_current_position: " << finger_current_position << std::endl;
 	finger_current_positions.segment(3, 3) << finger_current_position;
 	robot->position(finger_current_position, fingertip_link_names[2], fingertip_pos_in_link);
-	std::cout << "finger_current_position: " << finger_current_position << std::endl;
 	finger_current_positions.segment(6, 3) << finger_current_position;
 	robot->position(finger_current_position, fingertip_link_names[3], fingertip_pos_in_link);
-	finger_current_position << 0.08, 0.05, -0.02;
-	finger_current_positions.push_back(finger_current_position);
+	finger_current_positions.segment(9, 3) << finger_current_position;
+
+	std::cout << "finger_current_positions: " << finger_current_positions << std::endl;
+	
+	redis_client.setEigenMatrixJSON(FINGERTIP_POSITION_KEY, finger_current_positions);
+
+	VectorXd finger_target_positions = VectorXd::Zero(4 * 3);
 
 	finger_target_positions = redis_client.getEigenMatrixJSON(FINGERTIP_POSITION_KEY);
 
@@ -207,7 +199,6 @@ int main() {
 
 	logger->start();
 
-
 	// create a timer
 	runloop = true;
 	unsigned long long controller_counter = 0;
@@ -228,9 +219,7 @@ int main() {
 		redis_client.executeReadCallback(0);
 
 		finger_target_positions = redis_client.getEigenMatrixJSON(FINGERTIP_POSITION_KEY);
-		std::cout << "-*-*-*-*-*-" << std::endl; 
-		std::cout << finger_target_positions << std::endl;
-
+		
 		robot->updateModel();
 
 		// Set Task Hirearchy
@@ -258,12 +247,7 @@ int main() {
 					Vector3d finger_task_force = Vector3d::Zero();
 					VectorXd finger_torques =  VectorXd::Zero(robot_dof);
 
-					if (current_finger_idx == i){
-						desired_position << finger_target_positions[i];
-					} else {
-						desired_position << finger_current_positions[i];
-					}
-
+					desired_position << finger_target_positions.segment(i*3, 3);
 					robot->position(current_position, fingertip_link_names[i], fingertip_pos_in_link);
     				robot->linearVelocity(current_velocity, fingertip_link_names[i], fingertip_pos_in_link);
 					robot->Jv(finger_task_Jacobian, fingertip_link_names[i], fingertip_pos_in_link);
@@ -276,8 +260,10 @@ int main() {
 					finger_task_force = - TASK_VELOCITY_GAIN * (current_velocity - desired_velocity);
 					finger_torques = finger_task_Jacobian.transpose() * finger_task_force; 
 
-					all_pos_task_torques += finger_torques; // each pos task generates torques for all joints, with only the relevant finger joints being nonzero
+					all_pos_task_torques += finger_torques; // each pos task generates torques for all joints, with only the relevant finger joints being nonzero					
 				}
+
+				robot->nullspaceMatrix(N_task, combined_task_Jacobian);
 			}
 			catch(exception e) {
 				cout << "control cycle: " << controller_counter << endl;
@@ -286,7 +272,7 @@ int main() {
 				cout << "setting torques to zero for this control cycle" << endl;
 				cout << endl;
 			}
-			command_torques = all_pos_task_torques + N_task * robot->_M *  (-kpj * (robot->_q - q_mid) - kvj * robot->_dq);			
+			command_torques = all_pos_task_torques + N_task * robot->_M *  (-POSTURE_POSITION_GAIN * (robot->_q - q_mid) - POSTURE_VELOCITY_GAIN * robot->_dq);			
 		}
 
 		// write control torques
