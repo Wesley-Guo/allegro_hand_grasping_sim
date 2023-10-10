@@ -52,7 +52,7 @@ const string fingertip_link_names[] = {"link_3.0_tip", "link_7.0_tip", "link_11.
 const Vector3d fingertip_pos_in_link = Vector3d(0.0,0.0,0.035);
 
 // const bool flag_simulation = false;
-const bool flag_simulation = true;
+const bool flag_simulation = false;
 
 int main() {
 	// start redis client local
@@ -85,7 +85,7 @@ int main() {
     MatrixXd N_task_transpose = MatrixXd::Identity(4, 4);
 	MatrixXd finger_task_Jacobian = MatrixXd::Zero(3, robot_dof);
     VectorXd q_mid = VectorXd::Zero(robot_dof);
-    q_mid << -0.2, 0.0, 0.0, 0.0, -0.2, 0.0, 0.0, 0.0, -0.2, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5;
+    q_mid << 0.0, 0.5, 0.5, 0.5, 0.0, 0.5, 0.5, 0.5, 0.0, 0.5, 0.5, 0.5, -0.5, 0.5, 0.5, 0.5;
 
 	// controller_state
 	int state = INIT;
