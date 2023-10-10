@@ -82,10 +82,8 @@ int main() {
 	VectorXd command_torques = VectorXd::Zero(robot_dof);
 	VectorXd robot_coriolis = VectorXd::Zero(robot_dof);
 	MatrixXd N_prec = MatrixXd::Identity(robot_dof, robot_dof);
-    MatrixXd N_task = MatrixXd::Identity(robot_dof, robot_dof);
+    MatrixXd N_task_transpose = MatrixXd::Identity(4, 4);
 	MatrixXd finger_task_Jacobian = MatrixXd::Zero(3, robot_dof);
-	MatrixXd combined_task_Jacobian = MatrixXd::Zero(3 * 4, robot_dof);
-	MatrixXd combined_task_Jacobian_pseudo_inv = MatrixXd::Zero(robot_dof, 3 * 4);
     VectorXd q_mid = VectorXd::Zero(robot_dof);
     q_mid << -0.2, 0.0, 0.0, 0.0, -0.2, 0.0, 0.0, 0.0, -0.2, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5;
 
@@ -103,21 +101,26 @@ int main() {
 	joint_task->_kv = 25.0;
 	joint_task->_ki = 0.0;
 
-	double TASK_POSITION_GAIN = 250.0;
-	double TASK_VELOCITY_GAIN = 2.0;
 
-	double POSTURE_POSITION_GAIN = 22.5;
-	double POSTURE_VELOCITY_GAIN = 12.5;
+	double V_MAX, TASK_POSITION_GAIN, TASK_VELOCITY_GAIN, POSTURE_POSITION_GAIN, POSTURE_VELOCITY_GAIN;
+	if (flag_simulation){
+		V_MAX = 1.0;
 
-	double V_MAX = 0.15;
+		TASK_POSITION_GAIN = 125.0;
+		TASK_VELOCITY_GAIN = 2.25;
 
-	if (!flag_simulation){
-		TASK_POSITION_GAIN = 250.0;
+		POSTURE_POSITION_GAIN = 0.0025;
+		POSTURE_VELOCITY_GAIN = 0.0015;
+	} else {
+		V_MAX = 1.5;
+
+		TASK_POSITION_GAIN = 175.0;
 		TASK_VELOCITY_GAIN = 2.0;
 
-		POSTURE_POSITION_GAIN = 0.15;
-	    POSTURE_VELOCITY_GAIN = 0.005;
-	} 
+		POSTURE_POSITION_GAIN = 0.05;
+	    POSTURE_VELOCITY_GAIN = 0.025;
+
+	}
 
 	Eigen::VectorXd g(robot_dof); //joint space gravity vector
     joint_task->_desired_position = robot->_q; // use current robot config as init config
@@ -211,6 +214,8 @@ int main() {
 	bool fTimerDidSleep = true;
 	double start_time = timer.elapsedTime(); //secs
 
+	int num_iters = 0;
+
 	while (runloop) {
 		// wait for next scheduled loop
 		timer.waitForNextLoop();
@@ -246,25 +251,31 @@ int main() {
 					Vector3d current_velocity = Vector3d::Zero();
 					Vector3d desired_velocity = Vector3d::Zero();
 					Vector3d finger_task_force = Vector3d::Zero();
-					VectorXd finger_torques =  VectorXd::Zero(robot_dof);
+					VectorXd finger_torques =  VectorXd::Zero(4);
+					VectorXd posture_torques = VectorXd::Zero(4);
+					MatrixXd J_finger = MatrixXd::Zero(3, 4);
+					MatrixXd J_bar_finger = MatrixXd::Zero(3, 4);
 
 					desired_position << finger_target_positions.segment(i*3, 3);
 					robot->position(current_position, fingertip_link_names[i], fingertip_pos_in_link);
     				robot->linearVelocity(current_velocity, fingertip_link_names[i], fingertip_pos_in_link);
 					robot->Jv(finger_task_Jacobian, fingertip_link_names[i], fingertip_pos_in_link);
-					combined_task_Jacobian.block(i*3, 0, 3, robot_dof) = finger_task_Jacobian;
+					J_finger = finger_task_Jacobian.block<3, 4>(0, i*4);
 
 					desired_velocity = - TASK_POSITION_GAIN / TASK_VELOCITY_GAIN * (current_position - desired_position); 
 					if(desired_velocity.norm() > V_MAX){
 						desired_velocity *= V_MAX / desired_velocity.norm();
 					}					
 					finger_task_force = - TASK_VELOCITY_GAIN * (current_velocity - desired_velocity);
-					finger_torques = finger_task_Jacobian.transpose() * finger_task_force; 
+					finger_torques = J_finger.transpose() * finger_task_force; 
 
-					all_pos_task_torques += finger_torques; // each pos task generates torques for all joints, with only the relevant finger joints being nonzero					
+					std::cout << J_finger << std::endl;
+					J_bar_finger = J_finger.transpose() * (J_finger * J_finger.transpose()).inverse(); 
+					N_task_transpose = MatrixXd::Identity(4, 4) - (J_finger.transpose() * J_bar_finger.transpose());
+					posture_torques = N_task_transpose * (-POSTURE_POSITION_GAIN * (robot->_q.segment(i*4, 4) - q_mid.segment(i*4, 4)) - POSTURE_VELOCITY_GAIN * robot->_dq.segment(i*4, 4));
+					
+					all_pos_task_torques.segment(i*4, 4) = (finger_torques + posture_torques); // each pos task generates torques for all joints, with only the relevant finger joints being nonzero					
 				}
-
-				robot->nullspaceMatrix(N_task, combined_task_Jacobian);
 			}
 			catch(exception e) {
 				cout << "control cycle: " << controller_counter << endl;
@@ -273,7 +284,7 @@ int main() {
 				cout << "setting torques to zero for this control cycle" << endl;
 				cout << endl;
 			}
-			command_torques = all_pos_task_torques + N_task * robot->_M *  (-POSTURE_POSITION_GAIN * (robot->_q - q_mid) - POSTURE_VELOCITY_GAIN * robot->_dq);			
+			command_torques = all_pos_task_torques;	
 		}
 
 		// write control torques
