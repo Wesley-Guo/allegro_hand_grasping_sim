@@ -84,4 +84,5 @@ set (ALLEGRO_HAND_GRASP_BINARY_DIR
 	)
 add_subdirectory(00-ball_reorient)
 add_subdirectory(0-allegro_hand_only)
+add_subdirectory(1-panda_with_allegro)
 

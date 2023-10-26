@@ -6,6 +6,7 @@
 #include "tasks/JointTask.h"
 #include "tasks/PositionTask.h"
 #include "tasks/PosOriTask.h"
+#include "Sai2Primitives.h"
 // #include "filters/ButterworthFilter.h"
 #include "../src/Logger.h"
 // #include "perception/ForceSpaceParticleFilter.h"
