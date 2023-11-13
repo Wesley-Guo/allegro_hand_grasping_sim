@@ -18,16 +18,20 @@ using namespace std;
 using namespace Eigen;
 
 const string world_file = "./resources/world.urdf";
-const string robot_file = "./resources/panda_arm.urdf";
+const string robot_file = "./resources/panda_arm_allegro.urdf";
 const string robot_name = "PANDA";
 const string camera_name = "camera_fixed";
 
 // redis keys:
 // - write:
-const std::string JOINT_ANGLES_KEY = "sai2::panda_robot::sensors::q";
-const std::string JOINT_VELOCITIES_KEY = "sai2::panda_robot::sensors::dq";
+const std::string JOINT_ANGLES_KEY = "sai2::panda_robot_with_allegro::sensors::q";
+const std::string JOINT_VELOCITIES_KEY = "sai2::panda_robot_with_allegro::sensors::dq";
+
+const std::string PALM_POSITION_KEY = "sai2::panda_robot_with_allegro::sensors::palm_position";
+const std::string PAL_ORINETATION_KEY = "sai2::panda_robot_with_allegro::sensors::palm_orientation";
+
 // - read
-const std::string TORQUES_COMMANDED_KEY = "sai2::panda_robot::actuators::fgc";
+const std::string TORQUES_COMMANDED_KEY = "sai2::panda_robot_with_allegro::actuators::fgc";
 const string CONTROLLER_RUNNING_KEY = "sai2::controller_running";
 
 RedisClient redis_client;
@@ -222,6 +226,9 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	int dof = robot->dof();
 	VectorXd command_torques = VectorXd::Zero(dof);
 	VectorXd gravity = VectorXd::Zero(dof);
+	Vector3d palm_position = Vector3d::Zero();
+	Matrix3d R_palm = Matrix3d::Identity(3, 3);
+
 	redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEY, command_torques);
 
 	// create a timer
@@ -264,6 +271,12 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		// write new robot state to redis
 		redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEY, robot->_q);
 		redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, robot->_dq);
+
+		// write palm position and palm orientation
+		robot->position(palm_position, "palm_link");
+		robot->rotation(R_palm, "palm_link");
+		redis_client.setEigenMatrixJSON(PALM_POSITION_KEY, palm_position);
+		redis_client.setEigenMatrixJSON(PAL_ORINETATION_KEY, R_palm);
 
 		//update last time
 		// last_time = curr_time;

@@ -21,13 +21,13 @@ const string robot_name = "PANDA";
 
 // redis keys:
 // - read:
-const std::string JOINT_ANGLES_KEY = "sai2::panda_robot::sensors::q";
-const std::string JOINT_VELOCITIES_KEY = "sai2::panda_robot::sensors::dq";
+const std::string JOINT_ANGLES_KEY = "sai2::panda_robot_with_allegro::sensors::q";
+const std::string JOINT_VELOCITIES_KEY = "sai2::panda_robot_with_allegro::sensors::dq";
 
 const std::string WRIST_POSITION_KEY = "mocap::right_hand::position";
 const std::string WRIST_ORIENTATION_KEY = "mocap::right_hand::orientation";
 // - write
-const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::panda_robot::actuators::fgc";
+const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::panda_robot_with_allegro::actuators::fgc";
 const string CONTROLLER_RUNNING_KEY = "sai2::controller_running";
 
 unsigned long long controller_counter = 0;
@@ -45,12 +45,17 @@ int main() {
 
 	// load robots
 	auto robot = new Sai2Model::Sai2Model(robot_file, false);
-	robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
+	int dof = robot->dof();
+	VectorXd q = VectorXd::Zero(dof);
+	VectorXd dq = VectorXd::Zero(dof);
+	VectorXd tau = VectorXd::Zero(dof + 16);
+	
+	q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
+	robot->_q = q.head(dof);
 	VectorXd initial_q = robot->_q;
 	robot->updateModel();
 
 	// prepare controller
-	int dof = robot->dof();
 	const string link_name = "link7";
 	const Vector3d pos_in_link = Vector3d(0, 0, 0.1);
 	VectorXd command_torques = VectorXd::Zero(dof);
@@ -73,8 +78,11 @@ int main() {
 		double time = timer.elapsedTime() - start_time;
 
 		// read robot state from redis
-		robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
-		robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
+		q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
+        dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
+
+		robot->_q = q.head(dof);
+		robot->_dq = dq.head(dof);
 		robot->updateModel();
 
 		motion_primitive->updatePrimitiveModel(N_prec);
@@ -98,14 +106,16 @@ int main() {
 		motion_primitive->computeTorques(command_torques);
 
 		// send to redis
-		redis_client.setEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEY, command_torques);
+		tau = redis_client.getEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEY);
+		tau.head(dof) = command_torques;
+		redis_client.setEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEY, tau);
 
 		controller_counter++;
 
 	}
 
-	command_torques.setZero();
-	redis_client.setEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEY, command_torques);
+	tau.setZero();
+	redis_client.setEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEY, tau);
 	redis_client.set(CONTROLLER_RUNNING_KEY, "0");
 
 	double end_time = timer.elapsedTime();
