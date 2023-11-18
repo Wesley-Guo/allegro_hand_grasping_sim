@@ -312,7 +312,7 @@ int main() {
 			}
 
 
-			command_torques = all_pos_task_torques + gravity;	
+			command_torques = all_pos_task_torques;	
 		}
 
 		// write control torques

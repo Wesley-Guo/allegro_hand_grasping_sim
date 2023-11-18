@@ -28,7 +28,7 @@ const std::string WRIST_POSITION_KEY = "mocap::right_hand::position";
 const std::string WRIST_ORIENTATION_KEY = "mocap::right_hand::orientation";
 // - write
 const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::panda_robot_with_allegro::actuators::fgc";
-const string CONTROLLER_RUNNING_KEY = "sai2::controller_running";
+const string CONTROLLER_RUNNING_KEY = "sai2::panda_robot::controller_running";
 
 unsigned long long controller_counter = 0;
 
@@ -49,7 +49,7 @@ int main() {
 	VectorXd q = VectorXd::Zero(dof);
 	VectorXd dq = VectorXd::Zero(dof);
 	VectorXd tau = VectorXd::Zero(dof + 16);
-	
+
 	q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
 	robot->_q = q.head(dof);
 	VectorXd initial_q = robot->_q;
