@@ -2,11 +2,13 @@
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ALLEGRO_HAND_GRASP_BINARY_DIR}/1-panda_with_allegro)
 ADD_EXECUTABLE (arm_task_controller arm_task_controller.cpp ${ALLEGRO_HAND_GRASP_COMMON_SOURCE})
 ADD_EXECUTABLE (hand_task_controller hand_task_controller.cpp ${ALLEGRO_HAND_GRASP_COMMON_SOURCE})
+ADD_EXECUTABLE (joint_controller joint_controller.cpp ${ALLEGRO_HAND_GRASP_COMMON_SOURCE})
 ADD_EXECUTABLE (simviz simviz.cpp ${ALLEGRO_HAND_GRASP_COMMON_SOURCE})
 
 # and link the library against the executable
 TARGET_LINK_LIBRARIES (arm_task_controller ${ALLEGRO_HAND_GRASP_COMMON_LIBRARIES})
 TARGET_LINK_LIBRARIES (hand_task_controller ${ALLEGRO_HAND_GRASP_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (joint_controller ${ALLEGRO_HAND_GRASP_COMMON_LIBRARIES})
 TARGET_LINK_LIBRARIES (simviz ${ALLEGRO_HAND_GRASP_COMMON_LIBRARIES})
 
 # export resources such as model files.

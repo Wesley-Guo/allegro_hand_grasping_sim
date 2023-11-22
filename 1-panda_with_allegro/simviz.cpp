@@ -32,8 +32,7 @@ const std::string PAL_ORINETATION_KEY = "sai2::panda_robot_with_allegro::sensors
 
 // - read
 const std::string TORQUES_COMMANDED_KEY = "sai2::panda_robot_with_allegro::actuators::fgc";
-const string ARM_CONTROLLER_RUNNING_KEY = "sai2::panda_robot::controller_running";
-const string HAND_CONTROLLER_RUNNING_KEY = "sai2::allegro::controller_running";
+const string CONTROLLER_RUNNING_KEY = "sai2::panda_robot_with_allegro::controller_running";
 
 RedisClient redis_client;
 
@@ -123,8 +122,7 @@ int main() {
 	// cache variables
 	double last_cursorx, last_cursory;
 
-	redis_client.set(ARM_CONTROLLER_RUNNING_KEY, "0");
-	redis_client.set(HAND_CONTROLLER_RUNNING_KEY, "0");
+	redis_client.set(CONTROLLER_RUNNING_KEY, "0");
 
 	fSimulationRunning = true;
 	thread sim_thread(simulation, robot, sim);
@@ -247,14 +245,9 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		fTimerDidSleep = timer.waitForNextLoop();
 
 		robot->gravityVector(gravity);
-		if(redis_client.get(ARM_CONTROLLER_RUNNING_KEY) == "1")
+		if(redis_client.get(CONTROLLER_RUNNING_KEY) == "1")
 		{
-			gravity.head(7).setZero();
-		}
-
-		if(redis_client.get(HAND_CONTROLLER_RUNNING_KEY) == "1")
-		{
-			gravity.tail(16).setZero();
+			gravity.setZero();
 		}
 
 		// read arm torques from redis
