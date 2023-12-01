@@ -1,6 +1,7 @@
 #include "Sai2Model.h"
 #include "Sai2Graphics.h"
 #include "Sai2Simulation.h"
+#include "Sai2Primitives.h"
 #include <dynamics3d.h>
 #include "redis/RedisClient.h"
 #include "timer/LoopTimer.h"
@@ -19,6 +20,7 @@ using namespace Eigen;
 
 const string world_file = "./resources/world.urdf";
 const string robot_file = "./resources/panda_arm_allegro.urdf";
+const string hand_robot_file = "./resources/allegro_hand.urdf";
 const string robot_name = "PANDA";
 const string camera_name = "camera_fixed";
 
@@ -225,12 +227,20 @@ int main() {
 void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 	int dof = robot->dof();
+	int hand_robot_dof = 16;
 	VectorXd command_torques = VectorXd::Zero(dof);
+	VectorXd command_torques_arm = VectorXd::Zero(7);
+	VectorXd command_torques_hand = VectorXd::Zero(hand_robot_dof);
+	VectorXd hand_q = robot->_q.tail(16);
 	VectorXd gravity = VectorXd::Zero(dof);
 	Vector3d palm_position = Vector3d::Zero();
 	Matrix3d R_palm = Matrix3d::Identity(3, 3);
 
-	redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEY, command_torques);
+	enum class ControlMode {ARM , HAND};
+
+	ControlMode control_mode = ControlMode::ARM;
+
+	redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEY, command_torques_arm);
 
 	// create a timer
 	LoopTimer timer;
@@ -247,19 +257,24 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		robot->gravityVector(gravity);
 		if(redis_client.get(CONTROLLER_RUNNING_KEY) == "1")
 		{
-			gravity.setZero();
+			gravity.head(7).setZero();
 		}
 
 		// read arm torques from redis
-		command_torques = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEY);
+		command_torques_arm = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEY);
+
+		command_torques.head(7) = command_torques_arm;
+
+		command_torques_hand = robot->_M.block(7, 7, 16, 16) * (-125.0 * (robot->_q.tail(hand_robot_dof)  - hand_q) - 25.2 * robot->_dq.tail(hand_robot_dof)); 
+		command_torques.tail(hand_robot_dof) = command_torques_hand;
 
 		// set torques to simulation
 		sim->setJointTorques(robot_name, command_torques + gravity);
 
 		// integrate forward
-		// double curr_time = timer.elapsedTime();
-		// double loop_dt = curr_time - last_time; 
-		sim->integrate(0.001);
+		double curr_time = timer.elapsedTime();
+		double loop_dt = curr_time - last_time; 
+		sim->integrate(loop_dt);
 
 		// read joint positions, velocities, update model
 		sim->getJointPositions(robot_name, robot->_q);
@@ -277,7 +292,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		redis_client.setEigenMatrixJSON(PAL_ORINETATION_KEY, R_palm);
 
 		//update last time
-		// last_time = curr_time;
+		last_time = curr_time;
 
 		simulation_counter++;
 	}

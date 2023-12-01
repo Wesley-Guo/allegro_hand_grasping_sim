@@ -9,12 +9,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/visual/link0.obj"/>
+          <mesh filename="../../../model/meshes/visual/link0.obj"/>
         </geometry>
       </visual>
 <!--       <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/collision/link0.obj"/>
+          <mesh filename="../../../model/meshes/collision/link0.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -26,12 +26,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/visual/link1.obj"/>
+          <mesh filename="../../../model/meshes/visual/link1.obj"/>
         </geometry>
       </visual>
       <!-- <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/collision/link1.obj"/>
+          <mesh filename="../../../model/meshes/collision/link1.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -43,12 +43,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/visual/link2.obj"/>
+          <mesh filename="../../../model/meshes/visual/link2.obj"/>
         </geometry>
       </visual>
       <!-- <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/collision/link2.obj"/>
+          <mesh filename="../../../model/meshes/collision/link2.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -60,12 +60,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/visual/link3.obj"/>
+          <mesh filename="../../../model/meshes/visual/link3.obj"/>
         </geometry>
       </visual>
       <!-- <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/collision/link3.obj"/>
+          <mesh filename="../../../model/meshes/collision/link3.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -77,12 +77,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/visual/link4.obj"/>
+          <mesh filename="../../../model/meshes/visual/link4.obj"/>
         </geometry>
       </visual>
 <!--       <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/collision/link4.obj"/>
+          <mesh filename="../../../model/meshes/collision/link4.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -94,12 +94,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/visual/link5.obj"/>
+          <mesh filename="../../../model/meshes/visual/link5.obj"/>
         </geometry>
       </visual>
 <!--       <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/collision/link5.obj"/>
+          <mesh filename="../../../model/meshes/collision/link5.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -111,12 +111,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/visual/link6.obj"/>
+          <mesh filename="../../../model/meshes/visual/link6.obj"/>
         </geometry>
       </visual>
       <!-- <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/collision/link6.obj"/>
+          <mesh filename="../../../model/meshes/collision/link6.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -128,12 +128,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/visual/link7.obj"/>
+          <mesh filename="../../../model/meshes/visual/link7.obj"/>
         </geometry>
       </visual>
       <!-- <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/collision/link7.obj"/>
+          <mesh filename="../../../model/meshes/collision/link7.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -272,7 +272,7 @@
   <link name="palm_link">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/base_link.obj"/>
+        <mesh filename="../../../model/allegro/base_link.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0 "/>
       <material name="black">
@@ -282,7 +282,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="-0.009300 0 -0.0475"/>
       <geometry>
-        <!-- <mesh filename="../../../Model/allegro/base_link.obj"/> -->
+        <!-- <mesh filename="../../../model/allegro/base_link.obj"/> -->
           <box size="0.0407 0.1125 0.093"/>
       </geometry>
     </collision>
@@ -296,14 +296,14 @@
   <link name="link_0">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_0.0.obj"/>
+        <mesh filename="../../../model/allegro/link_0.0.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.0164"/> -->
-        <mesh filename="../../../Model/allegro/link_0.0.obj"/>
+        <mesh filename="../../../model/allegro/link_0.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0082"/>
     </collision>
@@ -325,14 +325,14 @@
   <link name="link_1">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_1.0.obj"/>
+        <mesh filename="../../../model/allegro/link_1.0.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.054"/> -->
-        <mesh filename="../../../Model/allegro/link_1.0.obj"/>
+        <mesh filename="../../../model/allegro/link_1.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.027"/>
     </collision>
@@ -354,13 +354,13 @@
   <link name="link_2">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_2.0.obj"/>
+        <mesh filename="../../../model/allegro/link_2.0.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_2.0.obj"/>
+        <mesh filename="../../../model/allegro/link_2.0.obj"/>
         <!-- <box size="0.0196 0.0275 0.0384"/> -->
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0192"/>
@@ -383,14 +383,14 @@
   <link name="link_3">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_3.0.obj"/>
+        <mesh filename="../../../model/allegro/link_3.0.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.0267"/> -->
-        <mesh filename="../../../Model/allegro/link_3.0.obj"/>
+        <mesh filename="../../../model/allegro/link_3.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.01335"/>
     </collision>
@@ -412,7 +412,7 @@
   <link name="link_3_tip">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_3.0_tip.obj"/>
+        <mesh filename="../../../model/allegro/link_3.0_tip.obj"/>
       </geometry>
       <material name="white">
         <color rgba=".9 .9 .9 1"/>
@@ -438,14 +438,14 @@
   <link name="link_4">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_0.0.obj"/>
+        <mesh filename="../../../model/allegro/link_0.0.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.0164"/> -->
-        <mesh filename="../../../Model/allegro/link_0.0.obj"/>
+        <mesh filename="../../../model/allegro/link_0.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0082"/>
     </collision>
@@ -467,14 +467,14 @@
   <link name="link_5">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_1.0.obj"/>
+        <mesh filename="../../../model/allegro/link_1.0.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.054"/> -->
-        <mesh filename="../../../Model/allegro/link_1.0.obj"/>
+        <mesh filename="../../../model/allegro/link_1.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.027"/>
     </collision>
@@ -496,14 +496,14 @@
   <link name="link_6">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_2.0.obj"/>
+        <mesh filename="../../../model/allegro/link_2.0.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.0384"/> -->
-        <mesh filename="../../../Model/allegro/link_2.0.obj"/>
+        <mesh filename="../../../model/allegro/link_2.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0192"/>
     </collision>
@@ -525,14 +525,14 @@
   <link name="link_7">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_3.0.obj"/>
+        <mesh filename="../../../model/allegro/link_3.0.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.0267"/> -->
-        <mesh filename="../../../Model/allegro/link_3.0.obj"/>
+        <mesh filename="../../../model/allegro/link_3.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.01335"/>
     </collision>
@@ -554,7 +554,7 @@
   <link name="link_7_tip">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_3.0_tip.obj"/>
+        <mesh filename="../../../model/allegro/link_3.0_tip.obj"/>
       </geometry>
       <material name="white">
         <color rgba=".9 .9 .9 1"/>
@@ -581,14 +581,14 @@
   <link name="link_8">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_0.0.obj"/>
+        <mesh filename="../../../model/allegro/link_0.0.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.0164"/> -->
-        <mesh filename="../../../Model/allegro/link_0.0.obj"/>
+        <mesh filename="../../../model/allegro/link_0.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0082"/>
     </collision>
@@ -610,14 +610,14 @@
   <link name="link_9">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_1.0.obj"/>
+        <mesh filename="../../../model/allegro/link_1.0.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.054"/> -->
-        <mesh filename="../../../Model/allegro/link_1.0.obj"/>
+        <mesh filename="../../../model/allegro/link_1.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.027"/>
     </collision>
@@ -639,14 +639,14 @@
   <link name="link_10">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_2.0.obj"/>
+        <mesh filename="../../../model/allegro/link_2.0.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.0384"/> -->
-        <mesh filename="../../../Model/allegro/link_2.0.obj"/>
+        <mesh filename="../../../model/allegro/link_2.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0192"/>
     </collision>
@@ -668,14 +668,14 @@
   <link name="link_11">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_3.0.obj"/>
+        <mesh filename="../../../model/allegro/link_3.0.obj"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.0267"/> -->
-        <mesh filename="../../../Model/allegro/link_3.0.obj"/>
+        <mesh filename="../../../model/allegro/link_3.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.01335"/>
     </collision>
@@ -697,7 +697,7 @@
   <link name="link_11_tip">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_3.0_tip.obj"/>
+        <mesh filename="../../../model/allegro/link_3.0_tip.obj"/>
       </geometry>
       <material name="white">
         <color rgba=".9 .9 .9 1"/>
@@ -723,7 +723,7 @@
   <link name="link_12">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_12.0_right.obj"/>
+        <mesh filename="../../../model/allegro/link_12.0_right.obj"/>
       </geometry>
       <material name="black">
         <color rgba=".2 .2 .2 1"/>
@@ -733,7 +733,7 @@
     <collision>
       <geometry>
         <!-- <box size="0.0358 0.034 0.0455"/> -->
-        <mesh filename="../../../Model/allegro/link_12.0_right.obj"/>
+        <mesh filename="../../../model/allegro/link_12.0_right.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="-0.0179 0.009 0.0145"/>
     </collision>
@@ -757,7 +757,7 @@
   <link name="link_13">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_13.0.obj"/>
+        <mesh filename="../../../model/allegro/link_13.0.obj"/>
       </geometry>
       <material name="black">
         <color rgba=".2 .2 .2 1"/>
@@ -766,7 +766,7 @@
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.0177"/> -->
-        <mesh filename="../../../Model/allegro/link_13.0.obj"/>
+        <mesh filename="../../../model/allegro/link_13.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.00885"/>
     </collision>
@@ -788,7 +788,7 @@
   <link name="link_14">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_14.0.obj"/>
+        <mesh filename="../../../model/allegro/link_14.0.obj"/>
       </geometry>
       <material name="black">
         <color rgba=".2 .2 .2 1"/>
@@ -797,7 +797,7 @@
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.0514"/> -->
-        <mesh filename="../../../Model/allegro/link_14.0.obj"/>
+        <mesh filename="../../../model/allegro/link_14.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.0257"/>
     </collision>
@@ -819,7 +819,7 @@
   <link name="link_15">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_15.0.obj"/>
+        <mesh filename="../../../model/allegro/link_15.0.obj"/>
       </geometry>
       <material name="black">
                 </material>
@@ -827,7 +827,7 @@
     <collision>
       <geometry>
         <!-- <box size="0.0196 0.0275 0.0423"/> -->
-        <mesh filename="../../../Model/allegro/link_15.0.obj"/>
+        <mesh filename="../../../model/allegro/link_15.0.obj"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0.02115"/>
     </collision>
@@ -850,7 +850,7 @@
   <link name="link_15_tip">
     <visual>
       <geometry>
-        <mesh filename="../../../Model/allegro/link_15.0_tip.obj"/>
+        <mesh filename="../../../model/allegro/link_15.0_tip.obj"/>
       </geometry>
       <material name="white">
         <color rgba=".9 .9 .9 1"/>
