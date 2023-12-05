@@ -85,6 +85,30 @@ int main() {
 
 	// load robots
 	auto robot = new Sai2Model::Sai2Model(robot_file, false);
+	robot->_q << 0/180.0*M_PI, // initialized starting position
+	    -25/180.0*M_PI, 
+		-45/180.0*M_PI, 
+		-135/180.0*M_PI, 
+		45/180.0*M_PI, 
+		80/180.0*M_PI, 
+		0 /180.0*M_PI, 
+	    0 /180.0*M_PI, 
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		0/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		0/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI,
+		-45/180.0*M_PI,
+		45/180.0*M_PI,
+		15/180.0*M_PI,
+		15/180.0*M_PI;
+	robot->_dq = VectorXd::Zero(robot->dof());
 	robot->updateKinematics();
 
 	// load simulation world
@@ -93,6 +117,7 @@ int main() {
 	sim->setCoeffFrictionStatic(0.6);
 
 	// read joint positions, velocities, update model
+	sim->setJointPositions(robot_name, robot->_q);
 	sim->getJointPositions(robot_name, robot->_q);
 	sim->getJointVelocities(robot_name, robot->_dq);
 	robot->updateKinematics();

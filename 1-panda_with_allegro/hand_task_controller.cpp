@@ -110,12 +110,12 @@ int main() {
 	// joint task for initialization
 	auto joint_task = new Sai2Primitives::JointTask(robot);
 	joint_task->_use_interpolation_flag = false;
-	joint_task->_use_velocity_saturation_flag = true;
+	joint_task->_use_velocity_saturation_flag = false;
 
 	VectorXd joint_task_torques = VectorXd::Zero(robot_dof);
-	joint_task->_kp = 150.0;
-	joint_task->_kv = 25.0;
-	joint_task->_ki = 0.0;
+	// joint_task->_kp = 150.0;
+	// joint_task->_kv = 25.0;
+	// joint_task->_ki = 0.0;
 
 
 	double V_MAX, TASK_POSITION_GAIN, TASK_VELOCITY_GAIN, POSTURE_POSITION_GAIN, POSTURE_VELOCITY_GAIN;
@@ -248,16 +248,13 @@ int main() {
 		num_iters += 1;
 
 		if(state == INIT) {
-			joint_task->_desired_position = q_mid;
+			joint_task->_desired_position = robot->_q;
             joint_task->updateTaskModel(N_prec);
 			joint_task->computeTorques(joint_task_torques);
 			command_torques = joint_task_torques;
 
-			std::cout << " joint mode " << std::endl;
 
-			if (num_iters > 500){
-				state = CONTROL;
-			}
+			state = CONTROL;
 			
 		}
 
@@ -318,11 +315,6 @@ int main() {
 		std::cout << "  command torques: " << command_torques << std::endl;
 		// write control torques
 		redis_client.setEigenMatrixJSON(ROBOT_COMMAND_TORQUES_SIM_KEY, command_torques);
-
-		if (num_iters > 20){
-			redis_client.setEigenMatrixJSON(ROBOT_COMMAND_TORQUES_SIM_KEY, command_torques.setZero());
-			std::exit(0);
-		}
 
 		// update logger values
 		robot->position(finger_tip_pos, fingertip_link_names[0], fingertip_pos_in_link);
