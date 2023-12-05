@@ -20,7 +20,6 @@ using namespace Eigen;
 
 const string world_file = "./resources/world.urdf";
 const string robot_file = "./resources/panda_arm_allegro.urdf";
-const string hand_robot_file = "./resources/allegro_hand.urdf";
 const string robot_name = "PANDA";
 const string camera_name = "camera_fixed";
 
@@ -33,8 +32,16 @@ const std::string PALM_POSITION_KEY = "sai2::panda_robot_with_allegro::sensors::
 const std::string PAL_ORINETATION_KEY = "sai2::panda_robot_with_allegro::sensors::palm_orientation";
 
 // - read
-const std::string TORQUES_COMMANDED_KEY = "sai2::panda_robot_with_allegro::actuators::fgc";
-const string CONTROLLER_RUNNING_KEY = "sai2::panda_robot_with_allegro::controller_running";
+const std::string ARM_TORQUES_COMMANDED_KEY = "sai2::panda_robot::actuators::tau";
+const std::string HAND_TORQUES_COMMANDE_KEY = "sai2::allegro::actuators::tau";
+
+const string ARM_CONTROL_RUNNING = "sai2::panda_robot::controller_running";
+const string HAND_CONTROL_RUNNING = "sai2::allegro::controller_running";
+
+
+// values this key can take are "arm" or "hand"
+const string CONTROL_MODE_KEY = "sai2::panda_robot_with_allegro::control_mode";
+
 
 RedisClient redis_client;
 
@@ -124,7 +131,8 @@ int main() {
 	// cache variables
 	double last_cursorx, last_cursory;
 
-	redis_client.set(CONTROLLER_RUNNING_KEY, "0");
+	redis_client.set(ARM_CONTROL_RUNNING, "0");
+	redis_client.set(HAND_CONTROL_RUNNING, "0");
 
 	fSimulationRunning = true;
 	thread sim_thread(simulation, robot, sim);
@@ -227,20 +235,23 @@ int main() {
 void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 	int dof = robot->dof();
+	int arm_robot_dof = 7;
 	int hand_robot_dof = 16;
+
 	VectorXd command_torques = VectorXd::Zero(dof);
-	VectorXd command_torques_arm = VectorXd::Zero(7);
+	VectorXd command_torques_arm = VectorXd::Zero(arm_robot_dof);
 	VectorXd command_torques_hand = VectorXd::Zero(hand_robot_dof);
-	VectorXd hand_q = robot->_q.tail(16);
+	VectorXd last_hand_q = robot->_q.tail(hand_robot_dof);
+	VectorXd last_arm_q = robot->_q.head(arm_robot_dof);
 	VectorXd gravity = VectorXd::Zero(dof);
 	Vector3d palm_position = Vector3d::Zero();
 	Matrix3d R_palm = Matrix3d::Identity(3, 3);
 
 	enum class ControlMode {ARM , HAND};
 
-	ControlMode control_mode = ControlMode::ARM;
+	ControlMode control_mode = ControlMode::HAND;
 
-	redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEY, command_torques_arm);
+	redis_client.setEigenMatrixJSON(ARM_TORQUES_COMMANDED_KEY, command_torques_arm);
 
 	// create a timer
 	LoopTimer timer;
@@ -255,19 +266,36 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		fTimerDidSleep = timer.waitForNextLoop();
 
 		robot->gravityVector(gravity);
-		if(redis_client.get(CONTROLLER_RUNNING_KEY) == "1")
-		{
-			gravity.head(7).setZero();
+
+		// read control mode from redis
+		std::string control_mode_str = redis_client.get(CONTROL_MODE_KEY);
+
+		if (control_mode_str == "arm") {
+			control_mode = ControlMode::ARM; 
+		} else if (control_mode_str == "hand") {
+			control_mode = ControlMode::HAND;
+		} else {
+			std::cout << " Unknown control mode: " << control_mode_str << std::endl;
 		}
 
 		// read arm torques from redis
-		command_torques_arm = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEY);
+		command_torques_arm = redis_client.getEigenMatrixJSON(ARM_TORQUES_COMMANDED_KEY);
+		command_torques.head(arm_robot_dof) = command_torques_arm;
 
-		command_torques.head(7) = command_torques_arm;
+		if (control_mode == ControlMode::ARM){
+			// If in ControlMode::ARM hold hand poistions rigid and remove gravity compensation from sim
+			command_torques_hand = robot->_M.block(arm_robot_dof, arm_robot_dof, hand_robot_dof, hand_robot_dof) * (-125.0 * (robot->_q.tail(hand_robot_dof)  - last_hand_q) - 25.2 * robot->_dq.tail(hand_robot_dof)); 
+			command_torques.tail(hand_robot_dof) = command_torques_hand;
+		} else if (control_mode == ControlMode::HAND){   
+			// read arm torques from redis
+			command_torques_hand = redis_client.getEigenMatrixJSON(HAND_TORQUES_COMMANDE_KEY);
+			command_torques.tail(hand_robot_dof) = command_torques_hand;
 
-		command_torques_hand = robot->_M.block(7, 7, 16, 16) * (-125.0 * (robot->_q.tail(hand_robot_dof)  - hand_q) - 25.2 * robot->_dq.tail(hand_robot_dof)); 
-		command_torques.tail(hand_robot_dof) = command_torques_hand;
-
+			// Store the last joint angles from hand torque control mode
+			last_hand_q = robot->_q.tail(hand_robot_dof);
+		}
+		
+		
 		// set torques to simulation
 		sim->setJointTorques(robot_name, command_torques + gravity);
 
