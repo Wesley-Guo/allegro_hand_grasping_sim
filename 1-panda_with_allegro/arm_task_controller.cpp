@@ -48,12 +48,16 @@ int main() {
 
 	// load robots
 	auto robot = new Sai2Model::Sai2Model(robot_file, false);
-	int dof = robot->dof();
-	VectorXd q = VectorXd::Zero(dof);
-	VectorXd dq = VectorXd::Zero(dof);
+	const int arm_dof = robot->dof();
+	const int hand_dof = 16;
+	VectorXd q = VectorXd::Zero(arm_dof + hand_dof);
+	VectorXd dq = VectorXd::Zero(arm_dof + hand_dof);
 
 	q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
-	robot->_q = q.head(dof);
+	dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
+	robot->_q = q.head(arm_dof);
+	robot->_dq = dq.head(arm_dof);
+
 	VectorXd initial_q = robot->_q;
 	robot->updateModel();
 
@@ -68,8 +72,8 @@ int main() {
 	Eigen::VectorXd posori_torques;
 	Eigen::VectorXd joint_torques;
 	Eigen::VectorXd gravity_torques;
-	VectorXd command_torques = VectorXd::Zero(dof);
-	Eigen::MatrixXd N_prec = Eigen::MatrixXd::Identity(dof,dof);
+	VectorXd command_torques = VectorXd::Zero(arm_dof);
+	Eigen::MatrixXd N_prec = Eigen::MatrixXd::Identity(arm_dof, arm_dof);
 
 	Sai2Primitives::PosOriTask *posori_task = new Sai2Primitives::PosOriTask(robot, link_name, pos_in_link);
 	posori_task->updateTaskModel(N_prec);
@@ -94,8 +98,10 @@ int main() {
 		double time = timer.elapsedTime() - start_time;
 
 		// read robot state from redis
-		robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
-        robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
+		q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
+		dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
+		robot->_q = q.head(arm_dof);
+		robot->_dq = dq.head(arm_dof);
         robot->updateModel();
 
 		posori_task->updateTaskModel(N_prec);
