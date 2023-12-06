@@ -103,7 +103,8 @@ int main() {
 	arm_robot->_q = q.head(arm_dof);
 	arm_robot->_dq = dq.head(arm_dof);
 
-	VectorXd initial_q = arm_robot->_q;
+	VectorXd last_arm_q = arm_robot->_q;
+	VectorXd initial_arm_q = arm_robot->_q;
 	arm_robot->updateModel();
 
 	hand_robot->_q = q.tail(hand_dof);
@@ -193,15 +194,23 @@ int main() {
 		// read robot state from redis
 		q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_SIM_KEY);
 		dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_SIM_KEY);
-		
 
-		// control the franka arm using pos / ori task and allegro had using fixed joint mode 
+		// Update the state of franka arm
+		arm_robot->_q = q.head(arm_dof);
+		arm_robot->_dq = dq.head(arm_dof);
+		arm_robot->updateModel();
+
+		// Update the state of allegro hand
+		hand_robot->_q = q.tail(hand_dof);
+		hand_robot->_dq = dq.tail(hand_dof);
+		hand_robot->updateModel();
+
 		if (control_mode == ControlMode::ARM) {
-			// update the franka controller states
-			arm_robot->_q = q.head(arm_dof);
-			arm_robot->_dq = dq.head(arm_dof);
-			arm_robot->updateModel();
+			// control the franka arm using pos / ori task and allegro had using fixed joint mode 
+			arm_command_torques.setZero();
+			hand_command_torques.setZero();
 
+			// Update the franka arm controllers
 			arm_posori_task->updateTaskModel(N_prec);
 			arm_joint_task->updateTaskModel(arm_posori_task->_N);
 
@@ -216,19 +225,23 @@ int main() {
 			arm_posori_task->computeTorques(arm_posori_torques);
 			arm_joint_task->computeTorques(arm_joint_torques);
 			arm_command_torques = arm_posori_torques + arm_joint_torques;
+			last_arm_q = hand_robot->_q; 
 
-			// update the allegro controller states
-			hand_robot->_q = q.tail(hand_dof);
-			hand_robot->_dq = dq.tail(hand_dof);
-			hand_robot->updateModel();
-
-			// Compute joint torques for maintaining position
+			// Compute finger torques for joint hold task
 			hand_command_torques = hand_robot->_M * (-HAND_JOINT_KP * (hand_robot->_q  - last_hand_q) -HAND_JOINT_KV * hand_robot->_dq); 
 		} else if (control_mode == ControlMode::HAND) {
-			// don't control the franka erm
+			// Switch to joint control of the franka arm and 
 			arm_command_torques.setZero();
 			hand_command_torques.setZero();
 
+			// compute arm torques for joint hold task
+			arm_joint_task->_desired_position = last_arm_q;
+			arm_joint_task->_desired_velocity.setZero(arm_robot->_dof);
+			arm_joint_task->updateTaskModel(N_prec);
+			arm_joint_task->computeTorques(arm_joint_torques);
+			arm_command_torques = arm_joint_torques;
+
+			// compute finger torques for position task
 			for (int i = 0; i < 4; i++) {
 				Vector3d desired_position = Vector3d::Zero();
 				Vector3d current_position = Vector3d::Zero();
@@ -259,8 +272,6 @@ int main() {
 				
 				hand_command_torques.segment(i*4, 4) = (finger_torques + posture_torques); // each pos task generates torques for all joints, with only the relevant finger joints being nonzero					
 			}
-
-
 			last_hand_q = hand_robot->_q;
 		} else {
 			arm_command_torques.setZero();
