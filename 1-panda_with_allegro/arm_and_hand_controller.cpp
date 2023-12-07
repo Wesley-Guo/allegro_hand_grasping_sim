@@ -59,6 +59,9 @@ const std::string HAND_TORQUES_COMMANDED_SIM_KEY = "sai2::allegro::actuators::ta
 const std::string FRANKA_COMMAND_TORQUES_KEY = "sai2::FrankaPanda::Bonnie::actuators::fgc";
 const std::string ALLEGRO_COMMAND_TORQUES_KEY = "allegroHand::controller::joint_torques_commanded";
 
+// real allegro palm-orinetation for gravity compensation
+const string ALLEGRO_PALM_ORIENTATION = "allegroHand::controller::palm_orientation";
+
 const std::string CONTROLLER_RUNNING = "sai2::panda_robot::controller_running";
 
 // switch for simulation mode 
@@ -134,7 +137,12 @@ int main() {
 	VectorXd last_arm_q = arm_robot->_q;
 	VectorXd initial_arm_q = arm_robot->_q;
 	// TODO: Adjust for using real robot mass properties
-	arm_robot->updateModel();
+	if (flag_simulation){
+		arm_robot->updateModel();
+	} else {
+
+	}
+	
 
     Vector3d wrist_position = Vector3d::Zero();
 	Matrix3d wrist_orientation = Matrix3d::Identity(3, 3);
@@ -166,6 +174,8 @@ int main() {
 	// prepare task controller for franka robot with null space joint control
 	Eigen::VectorXd arm_posori_torques;
 	Eigen::VectorXd arm_joint_torques;
+
+	VectorXd arm_coriolis = VectorXd::Zero(arm_dof);
 
 	VectorXd arm_command_torques = VectorXd::Zero(arm_dof);
 	Eigen::MatrixXd N_prec = Eigen::MatrixXd::Identity(arm_dof, arm_dof);
@@ -241,21 +251,51 @@ int main() {
 		}
 
 		// read robot state from redis
-		q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_SIM_KEY);
-		dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_SIM_KEY);
+		if (flag_simulation){
+			q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_SIM_KEY);
+			dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_SIM_KEY);
+		}
+
+		if (flag_simulation) {
+			arm_robot->_q = q.head(arm_dof);
+			arm_robot->_dq = dq.head(arm_dof);
+		} else {
+			arm_robot->_q = redis_client.getEigenMatrixJSON(FRANKA_JOINT_ANGLES_KEY);
+			arm_robot->_dq = redis_client.getEigenMatrixJSON(FRANKA_JOINT_VELOCITIES_KEY);
+		}
+	
+		MatrixXd mass_from_robot = MatrixXd::Identity(arm_dof, arm_dof);
+    	VectorXd coriolis_from_robot = VectorXd::Zero(arm_dof);
+		if(!flag_simulation) {
+			redis_client.addEigenToReadCallback(0, FRANKA_MASSMATRIX_KEY, mass_from_robot);
+			redis_client.addEigenToReadCallback(0, FRANKA_CORIOLIS_KEY, coriolis_from_robot);
+		}
 
 		// Update the state of franka arm
 		arm_robot->_q = q.head(arm_dof);
 		arm_robot->_dq = dq.head(arm_dof);
-		arm_robot->updateModel();
+		if (flag_simulation) {
+			arm_robot->updateModel();
+			arm_robot->coriolisForce(arm_coriolis);
+		} else {
+			arm_robot->updateKinematics();
+			arm_robot->_M = mass_from_robot;
+			arm_robot->updateInverseInertia();
+			arm_coriolis = coriolis_from_robot;
+		}
 
         // Update the wrist position and orinetaion
-        arm_robot->position(wrist_position, "link7");
-        arm_robot->rotation(wrist_orientation, "link7");
+        arm_robot->position(wrist_position, arm_link_name);
+        arm_robot->rotation(wrist_orientation, arm_link_name);
 
 		// Update the state of allegro hand
-		hand_robot->_q = q.tail(hand_dof);
-		hand_robot->_dq = dq.tail(hand_dof);
+		if (flag_simulation) {
+			hand_robot->_q = q.tail(hand_dof);
+			hand_robot->_dq = dq.tail(hand_dof);
+		} else {
+			hand_robot->_q = redis_client.getEigenMatrixJSON(ALLEGRO_JOINT_ANGLES_KEY);
+			hand_robot->_dq = redis_client.getEigenMatrixJSON(ALLEGRO_JOINT_VELOCITIES_KEY);
+		}
 		hand_robot->updateModel();
 
 		if (control_mode == ControlMode::ARM) {
@@ -278,7 +318,7 @@ int main() {
 			arm_posori_task->computeTorques(arm_posori_torques);
 			arm_joint_task->computeTorques(arm_joint_torques);
 			arm_command_torques = arm_posori_torques + arm_joint_torques;
-			last_arm_q = hand_robot->_q; 
+			last_arm_q = arm_robot->_q; 
 
 			// Compute finger torques for joint hold task
 			hand_command_torques = hand_robot->_M * (-HAND_JOINT_KP * (hand_robot->_q  - last_hand_q) -HAND_JOINT_KV * hand_robot->_dq); 
@@ -288,8 +328,6 @@ int main() {
 
             // send allegro hand torques for maintaining position
             redis_client.setEigenMatrixJSON(HAND_TORQUES_COMMANDED_SIM_KEY, hand_command_torques);
-
-
 		} else if (control_mode == ControlMode::HAND) {
             finger_target_positions = redis_client.getEigenMatrixJSON(FINGERTIP_POSITION_KEY);
 
@@ -340,6 +378,9 @@ int main() {
 			arm_command_torques.setZero();
 			hand_command_torques.setZero();
 		}
+
+		// publish wrist position and orientation for allegro controller
+		redis_client.setEigenMatrixJSON(ALLEGRO_PALM_ORIENTATION, wrist_orientation);
 
 		if (flag_simulation) {
 			// send franka control torques to redis
