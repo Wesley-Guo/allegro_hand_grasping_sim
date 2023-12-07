@@ -111,7 +111,7 @@ int main() {
 	}
 
     // Initialize franka robot model
-	const string arm_link_name = "end_effector";
+	const string arm_link_name = "link7";
 	const Vector3d arm_tcp_pos_in_link = Vector3d(0, 0, 0.1);
 
 	auto arm_robot = new Sai2Model::Sai2Model(arm_robot_file, false);
@@ -136,13 +136,24 @@ int main() {
 	
 	VectorXd last_arm_q = arm_robot->_q;
 	VectorXd initial_arm_q = arm_robot->_q;
-	// TODO: Adjust for using real robot mass properties
-	if (flag_simulation){
-		arm_robot->updateModel();
-	} else {
+	VectorXd arm_coriolis = VectorXd::Zero(arm_dof);
 
+	MatrixXd mass_from_robot = MatrixXd::Identity(arm_dof, arm_dof);
+    VectorXd coriolis_from_robot = VectorXd::Zero(arm_dof);
+	if(!flag_simulation) {
+			redis_client.addEigenToReadCallback(0, FRANKA_MASSMATRIX_KEY, mass_from_robot);
+			redis_client.addEigenToReadCallback(0, FRANKA_CORIOLIS_KEY, coriolis_from_robot);
 	}
 	
+	if (flag_simulation) {
+		arm_robot->updateModel();
+		arm_robot->coriolisForce(arm_coriolis);
+	} else {
+		arm_robot->updateKinematics();
+		arm_robot->_M = mass_from_robot;
+		arm_robot->updateInverseInertia();
+		arm_coriolis = coriolis_from_robot;
+	}
 
     Vector3d wrist_position = Vector3d::Zero();
 	Matrix3d wrist_orientation = Matrix3d::Identity(3, 3);
@@ -174,8 +185,6 @@ int main() {
 	// prepare task controller for franka robot with null space joint control
 	Eigen::VectorXd arm_posori_torques;
 	Eigen::VectorXd arm_joint_torques;
-
-	VectorXd arm_coriolis = VectorXd::Zero(arm_dof);
 
 	VectorXd arm_command_torques = VectorXd::Zero(arm_dof);
 	Eigen::MatrixXd N_prec = Eigen::MatrixXd::Identity(arm_dof, arm_dof);
@@ -264,8 +273,6 @@ int main() {
 			arm_robot->_dq = redis_client.getEigenMatrixJSON(FRANKA_JOINT_VELOCITIES_KEY);
 		}
 	
-		MatrixXd mass_from_robot = MatrixXd::Identity(arm_dof, arm_dof);
-    	VectorXd coriolis_from_robot = VectorXd::Zero(arm_dof);
 		if(!flag_simulation) {
 			redis_client.addEigenToReadCallback(0, FRANKA_MASSMATRIX_KEY, mass_from_robot);
 			redis_client.addEigenToReadCallback(0, FRANKA_CORIOLIS_KEY, coriolis_from_robot);
