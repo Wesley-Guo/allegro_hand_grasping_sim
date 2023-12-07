@@ -317,7 +317,7 @@ int main() {
 
 			arm_posori_task->computeTorques(arm_posori_torques);
 			arm_joint_task->computeTorques(arm_joint_torques);
-			arm_command_torques = arm_posori_torques + arm_joint_torques;
+			arm_command_torques = arm_posori_torques + arm_joint_torques + arm_coriolis;
 			last_arm_q = arm_robot->_q; 
 
 			// Compute finger torques for joint hold task
