@@ -270,22 +270,22 @@ int main() {
 		timer.waitForNextLoop();
 		double time = timer.elapsedTime() - start_time;
 
-		// read control mode from redis
-		std::string control_mode_str = redis_client.get(CONTROL_MODE_KEY);
-		if (control_mode_str == "arm") {
-			control_mode = ControlMode::ARM; 
-		} else if (control_mode_str == "hand") {
-			control_mode = ControlMode::HAND;
-		} else {
-			std::cout << " Unknown control mode: " << control_mode_str << std::endl;
-		}
-
 		// read VR keys
 		// read wrist tracking params from vr controller
 		vr_wrist_position = redis_client.getEigenMatrixJSON(VR_RIGHT_CONTROLLER_POSITION_KEY);
 		// vr_wrist_orientation = redis_client.getEigenMatrixJSON(VR_RIGHT_CONTROLLER_ROTATION_KEY);
 		vr_right_grip = redis_client.get(VR_RIGHT_CONTROLLER_GRIP_KEY);  // hold to enable haptic control 
 		vr_right_trigger = redis_client.get(VR_RIGHT_CONTROLLER_TRIGGER_KEY);  // hold to enable orientation control
+
+		// read control mode from redis
+		// std::string control_mode_str = redis_client.get(CONTROL_MODE_KEY);
+		if (vr_right_trigger == "0") {
+			control_mode = ControlMode::ARM; 
+		} else if (vr_right_trigger == "1") {
+			control_mode = ControlMode::HAND;
+		} else {
+			std::cout << " Unknown control mode: " << vr_right_trigger << std::endl;
+		}
 
 		// read robot state from redis
 		if (flag_simulation){
