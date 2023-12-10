@@ -77,13 +77,13 @@ int main() {
 	// load robots
 	auto robot = new Sai2Model::Sai2Model(robot_file, false);
 	robot->_q << 0/180.0*M_PI, // initialized starting position
-	    -25/180.0*M_PI, 
-		-45/180.0*M_PI, 
-		-135/180.0*M_PI, 
-		45/180.0*M_PI, 
-		80/180.0*M_PI, 
-		0 /180.0*M_PI, 
-	    0 /180.0*M_PI, 
+	    -27.5/180.0*M_PI, 
+		0/180.0*M_PI, 
+		-120/180.0*M_PI, 
+		-2/180.0*M_PI, 
+		92/180.0*M_PI, 
+		0/180.0*M_PI, 
+	    0/180.0*M_PI, 
 		15/180.0*M_PI,
 		15/180.0*M_PI,
 		15/180.0*M_PI,
