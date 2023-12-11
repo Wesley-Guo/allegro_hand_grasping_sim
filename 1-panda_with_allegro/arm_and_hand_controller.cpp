@@ -121,8 +121,8 @@ int main() {
 	Matrix3d R_vr_to_user = R_base_to_user * R_vr_to_base;
 
     // Initialize franka robot model
-	const string arm_link_name = "link7";
-	const Vector3d arm_tcp_pos_in_link = Vector3d(0, 0, 0.1);
+	const string arm_link_name = "end_effector";
+	const Vector3d arm_tcp_pos_in_link = Vector3d(0, 0, 0.0);
 
 	auto arm_robot = new Sai2Model::Sai2Model(arm_robot_file, false);
 	const int arm_dof = arm_robot->dof();
