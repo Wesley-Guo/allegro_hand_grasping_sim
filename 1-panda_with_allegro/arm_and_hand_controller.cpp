@@ -67,7 +67,7 @@ const string ALLEGRO_PALM_ORIENTATION = "allegroHand::controller::palm_orientati
 const std::string CONTROLLER_RUNNING = "sai2::panda_robot::controller_running";
 
 // switch for simulation mode 
-const bool flag_simulation = false;
+const bool flag_simulation = true;
 unsigned long long controller_counter = 0;
 
 
@@ -237,15 +237,6 @@ int main() {
 	arm_joint_task->_desired_position = arm_robot->_q;
 	arm_joint_task->_desired_velocity.setZero(arm_robot->_dof);
 
-    // prepare joint hold task for franka robot
-    Sai2Primitives::JointTask *arm_hold_task = new Sai2Primitives::JointTask(arm_robot);
-	arm_hold_task->_kp = 200.0;
-	arm_hold_task->_kv = 20.0;
-	arm_hold_task->updateTaskModel(N_prec);
-
-	arm_hold_task->_desired_position = arm_robot->_q;
-	arm_hold_task->_desired_velocity.setZero(arm_robot->_dof);
-
 	// prepare controller for allegro hand
 	VectorXd hand_command_torques = VectorXd::Zero(hand_dof);
 
@@ -384,12 +375,18 @@ int main() {
 			arm_command_torques.setZero();
 			hand_command_torques.setZero();
 
-			// compute arm torques for joint hold task
-			arm_hold_task->_desired_position = last_arm_q;
-			arm_hold_task->_desired_velocity.setZero(arm_robot->_dof);
-			arm_hold_task->updateTaskModel(N_prec);
-			arm_hold_task->computeTorques(arm_joint_torques);
-			arm_command_torques = arm_joint_torques;
+			// compute arm torques for holding the position
+			arm_posori_task->updateTaskModel(N_prec);
+			arm_joint_task->updateTaskModel(arm_posori_task->_N);
+
+			arm_posori_task->_desired_position = robot_position_last;
+			arm_posori_task->_desired_velocity =  Eigen::Vector3d::Zero();
+			arm_posori_task->_desired_orientation = robot_orientation_home;
+			arm_posori_task->_desired_angular_velocity = Eigen::Vector3d::Zero();
+
+			arm_posori_task->computeTorques(arm_posori_torques);
+			arm_joint_task->computeTorques(arm_joint_torques);
+			arm_command_torques = arm_posori_torques + arm_joint_torques;
 
 			// compute finger torques for position task
 			for (int i = 0; i < 4; i++) {
