@@ -43,10 +43,11 @@ const std::string FRANKA_CORIOLIS_KEY = "sai2::FrankaPanda::Clyde::sensors::mode
 
 std::string FINGERTIP_POSITION_KEY = "allegroHand::controller::finger_positions_commanded";
 
-const std::string VR_RIGHT_CONTROLLER_ROTATION_KEY = "vr::right::rotation";
-const std::string VR_RIGHT_CONTROLLER_POSITION_KEY = "vr::right::position";
-const std::string VR_RIGHT_CONTROLLER_GRIP_KEY = "vr::right::grip_button";
-const std::string VR_RIGHT_CONTROLLER_TRIGGER_KEY = "vr::right::trigger_button";
+const std::string VR_LEFT_CONTROLLER_ROTATION_KEY = "vr::left::rotation";
+const std::string VR_LEFT_CONTROLLER_POSITION_KEY = "vr::left::position";
+const std::string VR_LEFT_CONTROLLER_GRIP_KEY = "vr::left::grip_button";
+const std::string VR_LEFT_CONTROLLER_TRIGGER_KEY = "vr::left::trigger_button";
+const std::string VR_LEFT_CONTROLLER_A_BUTTON = "vr::left::a_button";
 
 // values this key can take are "arm" or "hand"
 const string CONTROL_MODE_KEY = "sai2::panda_robot_with_allegro::control_mode";
@@ -70,6 +71,8 @@ const std::string CONTROLLER_RUNNING = "sai2::panda_robot::controller_running";
 const bool flag_simulation = true;
 unsigned long long controller_counter = 0;
 
+// Allegro related constants
+const int NUM_FINGERS = 4;
 
 // gain values for allegro
 const double HAND_JOINT_KP = 125.0;
@@ -79,7 +82,7 @@ double HAND_V_MAX, HAND_TASK_POSITION_GAIN, HAND_TASK_VELOCITY_GAIN, HAND_POSTUR
 
 
 // control modes
-enum class ControlMode {ARM , HAND};
+enum class ControlMode {ARM , HAND_POSITION, HAND_FORCE_CLOSURE};
 
 int main() {
 
@@ -94,6 +97,7 @@ int main() {
 
 	// initialize the control mode
 	ControlMode control_mode = ControlMode::ARM;
+	ControlMode prev_control_mode = ControlMode::ARM;
 
 	// Gain values for allegro hand
 	if (flag_simulation) { 
@@ -175,7 +179,7 @@ int main() {
     Vector3d vr_wrist_position = Vector3d::Zero();
 	Vector3d vr_wrist_position_center = Vector3d::Zero();
 	Matrix3d vr_wrist_orientation = Matrix3d::Identity(3, 3);
-	std::string vr_right_trigger, vr_right_grip;
+	std::string vr_left_trigger, vr_left_grip, vr_left_a_button;
 
 	Vector3d robot_position = Vector3d::Zero();
 	Vector3d robot_position_last = Vector3d::Zero();
@@ -224,8 +228,9 @@ int main() {
 	arm_posori_task->_kv_pos = 20.0;
 	arm_posori_task->_kp_ori = 200.0;
 	arm_posori_task->_kv_ori = 20.0;
-	arm_posori_task->_e_max = 5e-2;
-	arm_posori_task->_e_min = 5e-3;
+	// TODO: Uncomment this in the lab
+	// arm_posori_task->_e_max = 5e-2;
+	// arm_posori_task->_e_min = 5e-3;
 
 	arm_posori_task->updateTaskModel(N_prec);
 
@@ -256,7 +261,6 @@ int main() {
 	hand_robot->position(finger_current_position, fingertip_link_names[2], fingertip_pos_in_link);
 	finger_current_positions.segment(6, 3) << finger_current_position;
 	hand_robot->position(finger_current_position, fingertip_link_names[3], fingertip_pos_in_link);
-	// finger_current_position << 0.08, 0.05, -0.02;
 	finger_current_positions.segment(9, 3) << finger_current_position;
 	
 	redis_client.setEigenMatrixJSON(FINGERTIP_POSITION_KEY, finger_current_positions);
@@ -267,6 +271,9 @@ int main() {
 
 	VectorXd one_finger_computed_torques =  VectorXd::Zero(hand_dof); 
 	VectorXd all_finger_pos_task_torques = VectorXd::Zero(hand_dof); 
+
+	VectorXd finger_target_forces = VectorXd::Zero(4 * 3);
+	VectorXd finger_current_center = Vector3d::Zero();
 
 	// create a timer
 	LoopTimer timer;
@@ -283,19 +290,24 @@ int main() {
 
 		// read VR keys
 		// read wrist tracking params from vr controller
-		vr_wrist_position = redis_client.getEigenMatrixJSON(VR_RIGHT_CONTROLLER_POSITION_KEY);
-		// vr_wrist_orientation = redis_client.getEigenMatrixJSON(VR_RIGHT_CONTROLLER_ROTATION_KEY);
-		vr_right_grip = redis_client.get(VR_RIGHT_CONTROLLER_GRIP_KEY);  // hold to enable haptic control 
-		vr_right_trigger = redis_client.get(VR_RIGHT_CONTROLLER_TRIGGER_KEY);  // hold to enable orientation control
+		vr_wrist_position = redis_client.getEigenMatrixJSON(VR_LEFT_CONTROLLER_POSITION_KEY);
+		vr_wrist_orientation = redis_client.getEigenMatrixJSON(VR_LEFT_CONTROLLER_ROTATION_KEY);
+		vr_left_grip = redis_client.get(VR_LEFT_CONTROLLER_GRIP_KEY);  // hold to enable haptic control 
+		vr_left_trigger = redis_client.get(VR_LEFT_CONTROLLER_TRIGGER_KEY);  // hold to enable orientation control
+		vr_left_a_button = redis_client.get(VR_LEFT_CONTROLLER_A_BUTTON); // hold to enable force closure mode
 
 		// read control mode from redis
 		// std::string control_mode_str = redis_client.get(CONTROL_MODE_KEY);
-		if (vr_right_trigger == "0") {
+		prev_control_mode = control_mode;
+		if (vr_left_trigger == "0") {
 			control_mode = ControlMode::ARM; 
-		} else if (vr_right_trigger == "1") {
-			control_mode = ControlMode::HAND;
-		} else {
-			std::cout << " Unknown control mode: " << vr_right_trigger << std::endl;
+		} else if (vr_left_trigger == "1") {
+			control_mode = ControlMode::HAND_POSITION;
+		} else if (vr_left_a_button == "1") {
+			control_mode = ControlMode::HAND_FORCE_CLOSURE;
+		} 
+		else {
+			std::cout << " Unknown control mode: VR_LEFT_TRIGGER: " << vr_left_trigger << " VR_RIGHT_TRIGGER: " << vr_left_a_button << std::endl;
 		}
 
 		// read robot state from redis
@@ -342,7 +354,7 @@ int main() {
 			arm_joint_task->updateTaskModel(arm_posori_task->_N);
 
 			// Compute torques for franka robot
-			if (vr_right_grip == "1") {
+			if (vr_left_grip == "1") {
 				arm_posori_task->_desired_position = robot_position_center +  R_vr_to_user * (vr_wrist_position - vr_wrist_position_center);
 				robot_position_last = robot_position;
 			} else {
@@ -368,7 +380,7 @@ int main() {
 
             // send allegro hand torques for maintaining position
             redis_client.setEigenMatrixJSON(HAND_TORQUES_COMMANDED_SIM_KEY, hand_command_torques);
-		} else if (control_mode == ControlMode::HAND) {
+		} else if (control_mode == ControlMode::HAND_POSITION) {
             finger_target_positions = redis_client.getEigenMatrixJSON(FINGERTIP_POSITION_KEY);
 
 			// Switch to joint control of the franka arm and 
@@ -389,7 +401,7 @@ int main() {
 			arm_command_torques = arm_posori_torques + arm_joint_torques;
 
 			// compute finger torques for position task
-			for (int i = 0; i < 4; i++) {
+			for (int i = 0; i < NUM_FINGERS; i++) {
 				Vector3d desired_position = Vector3d::Zero();
 				Vector3d current_position = Vector3d::Zero();
 				Vector3d current_velocity = Vector3d::Zero();
@@ -402,6 +414,7 @@ int main() {
 
 				desired_position << finger_target_positions.segment(i*3, 3);
 				hand_robot->position(current_position, fingertip_link_names[i], fingertip_pos_in_link);
+				finger_current_positions.segment(i*3, 3) = current_position;
 				hand_robot->linearVelocity(current_velocity, fingertip_link_names[i], fingertip_pos_in_link);
 				hand_robot->Jv(finger_task_Jacobian, fingertip_link_names[i], fingertip_pos_in_link);
 				J_finger = finger_task_Jacobian.block<3, 4>(0, i*4);
@@ -420,12 +433,42 @@ int main() {
 				hand_command_torques.segment(i*4, 4) = (finger_torques + posture_torques); // each pos task generates torques for all joints, with only the relevant finger joints being nonzero					
 			}
 			last_hand_q = hand_robot->_q;
+		} else if (control_mode == ControlMode::HAND_FORCE_CLOSURE) {
+			// Compute target finger force in the hand frame based on their current position. 
+			if (prev_control_mode != ControlMode::HAND_FORCE_CLOSURE){
+				for (int i =0; i < NUM_FINGERS; i++) {
+					finger_current_center += finger_current_positions.segment(i*3, 3);
+				}
+				finger_current_center /= NUM_FINGERS;
+
+				for (int i=0; i < NUM_FINGERS; i++) {
+					Vector3d finger_to_center = finger_current_center - finger_current_positions.segment(i*3, 3); 
+					finger_target_forces.segment(i*3, 3) = finger_to_center / finger_to_center.norm(); 
+				}
+			}
+
+			for (int i=0; i < NUM_FINGERS; i++){
+				// keep executing the computed forces until the mode is switched. 
+				VectorXd finger_torques =  VectorXd::Zero(4);
+				VectorXd posture_torques = VectorXd::Zero(4);
+				MatrixXd J_finger = MatrixXd::Zero(3, 4);
+				MatrixXd J_bar_finger = MatrixXd::Zero(3, 4);
+
+				hand_robot->Jv(finger_task_Jacobian, fingertip_link_names[i], fingertip_pos_in_link);
+				J_finger = finger_task_Jacobian.block<3, 4>(0, i*4);
+				finger_torques = J_finger.transpose() * finger_target_forces.segment(i*3, 3); 
+				J_bar_finger = J_finger.transpose() * (J_finger * J_finger.transpose()).inverse(); 
+				hand_N_task_transpose = MatrixXd::Identity(4, 4) - (J_finger.transpose() * J_bar_finger.transpose());
+				posture_torques = hand_N_task_transpose * (-HAND_POSTURE_POSITION_GAIN * (hand_robot->_q.segment(i*4, 4) - hand_q_mid.segment(i*4, 4)) - HAND_POSTURE_VELOCITY_GAIN * hand_robot->_dq.segment(i*4, 4));
+				hand_command_torques.segment(i*4, 4) = (finger_torques + posture_torques);
+			}
 		} else {
 			arm_command_torques.setZero();
 			hand_command_torques.setZero();
 		}
 
 		// publish wrist position and orientation for allegro controller
+		// TODO: Check the allegro palm orientation is set correctly. 
 		redis_client.setEigenMatrixJSON(ALLEGRO_PALM_ORIENTATION, R_hand_to_wrist * robot_orientation.transpose());
 
 		if (flag_simulation) {
