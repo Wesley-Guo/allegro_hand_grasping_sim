@@ -291,7 +291,7 @@ int main() {
 		// read VR keys
 		// read wrist tracking params from vr controller
 		vr_wrist_position = redis_client.getEigenMatrixJSON(VR_LEFT_CONTROLLER_POSITION_KEY);
-		vr_wrist_orientation = redis_client.getEigenMatrixJSON(VR_LEFT_CONTROLLER_ROTATION_KEY);
+		// vr_wrist_orientation = redis_client.getEigenMatrixJSON(VR_LEFT_CONTROLLER_ROTATION_KEY);
 		vr_left_grip = redis_client.get(VR_LEFT_CONTROLLER_GRIP_KEY);  // hold to enable haptic control 
 		vr_left_trigger = redis_client.get(VR_LEFT_CONTROLLER_TRIGGER_KEY);  // hold to enable orientation control
 		vr_left_a_button = redis_client.get(VR_LEFT_CONTROLLER_A_BUTTON); // hold to enable force closure mode
@@ -301,13 +301,13 @@ int main() {
 		prev_control_mode = control_mode;
 		if (vr_left_trigger == "0") {
 			control_mode = ControlMode::ARM; 
+		} else if (vr_left_trigger == "1" && vr_left_a_button == "1") {
+			control_mode = ControlMode::HAND_FORCE_CLOSURE;
 		} else if (vr_left_trigger == "1") {
 			control_mode = ControlMode::HAND_POSITION;
-		} else if (vr_left_a_button == "1") {
-			control_mode = ControlMode::HAND_FORCE_CLOSURE;
 		} 
 		else {
-			std::cout << " Unknown control mode: VR_LEFT_TRIGGER: " << vr_left_trigger << " VR_RIGHT_TRIGGER: " << vr_left_a_button << std::endl;
+			std::cout << " Unknown control mode: VR_LEFT_TRIGGER: " << vr_left_trigger << " VR_LEFT_A_BUTTON: " << vr_left_a_button << std::endl;
 		}
 
 		// read robot state from redis
@@ -445,6 +445,8 @@ int main() {
 					Vector3d finger_to_center = finger_current_center - finger_current_positions.segment(i*3, 3); 
 					finger_target_forces.segment(i*3, 3) = finger_to_center / finger_to_center.norm(); 
 				}
+
+				finger_target_forces *= 0.05;
 			}
 
 			for (int i=0; i < NUM_FINGERS; i++){
