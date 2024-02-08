@@ -48,6 +48,7 @@ const std::string VR_LEFT_CONTROLLER_POSITION_KEY = "vr::left::position";
 const std::string VR_LEFT_CONTROLLER_GRIP_KEY = "vr::left::grip_button";
 const std::string VR_LEFT_CONTROLLER_TRIGGER_KEY = "vr::left::trigger_button";
 const std::string VR_LEFT_CONTROLLER_A_BUTTON = "vr::left::a_button";
+const std::string VR_LEFT_CONTROLLER_B_BUTTON = "vr::left::b_button";
 
 // values this key can take are "arm" or "hand"
 const string CONTROL_MODE_KEY = "sai2::panda_robot_with_allegro::control_mode";
@@ -178,19 +179,22 @@ int main() {
 
     Vector3d vr_wrist_position = Vector3d::Zero();
 	Vector3d vr_wrist_position_center = Vector3d::Zero();
+	VectorXd vr_wrist_orientation_vector = VectorXd::Zero(9);
 	Matrix3d vr_wrist_orientation = Matrix3d::Identity(3, 3);
-	std::string vr_left_trigger, vr_left_grip, vr_left_a_button;
+	Matrix3d vr_wrist_orientation_center = Matrix3d::Identity(3, 3);
+	std::string vr_left_trigger, vr_left_grip, vr_left_a_button, vr_left_b_button;
 
 	Vector3d robot_position = Vector3d::Zero();
 	Vector3d robot_position_last = Vector3d::Zero();
 	Vector3d robot_position_center = Vector3d::Zero();
 	Matrix3d robot_orientation = Matrix3d::Identity(3, 3);
-	Matrix3d robot_orientation_home = Matrix3d::Identity(3, 3);
+	Matrix3d robot_orientation_last = Matrix3d::Identity(3, 3);
+	Matrix3d robot_orientation_center = Matrix3d::Identity(3, 3);
     arm_robot->position(robot_position, arm_link_name, arm_tcp_pos_in_link);
 	robot_position_last = robot_position;
 	robot_position_center = robot_position;
 	arm_robot->rotation(robot_orientation, arm_link_name);
-	robot_orientation_home = robot_orientation;
+	robot_orientation_center = robot_orientation;
 
     // Initialize the allegro robot model
 	const string fingertip_link_names[] = {"link_3.0_tip", "link_7.0_tip", "link_11.0_tip", "link_15.0_tip"};
@@ -291,23 +295,22 @@ int main() {
 		// read VR keys
 		// read wrist tracking params from vr controller
 		vr_wrist_position = redis_client.getEigenMatrixJSON(VR_LEFT_CONTROLLER_POSITION_KEY);
-		// vr_wrist_orientation = redis_client.getEigenMatrixJSON(VR_LEFT_CONTROLLER_ROTATION_KEY);
-		vr_left_grip = redis_client.get(VR_LEFT_CONTROLLER_GRIP_KEY);  // hold to enable haptic control 
+		vr_wrist_orientation_vector = redis_client.getEigenMatrixJSON(VR_LEFT_CONTROLLER_ROTATION_KEY);
+		vr_wrist_orientation << vr_wrist_orientation_vector;
+		vr_left_grip = redis_client.get(VR_LEFT_CONTROLLER_GRIP_KEY);        // hold to enable haptic control 
 		vr_left_trigger = redis_client.get(VR_LEFT_CONTROLLER_TRIGGER_KEY);  // hold to enable orientation control
-		vr_left_a_button = redis_client.get(VR_LEFT_CONTROLLER_A_BUTTON); // hold to enable force closure mode
+		vr_left_a_button = redis_client.get(VR_LEFT_CONTROLLER_A_BUTTON);    // hold to enable hand position control
+		vr_left_b_button = redis_client.get(VR_LEFT_CONTROLLER_B_BUTTON);    // hold to enable force closure mode
 
 		// read control mode from redis
 		// std::string control_mode_str = redis_client.get(CONTROL_MODE_KEY);
 		prev_control_mode = control_mode;
-		if (vr_left_trigger == "0") {
-			control_mode = ControlMode::ARM; 
-		} else if (vr_left_trigger == "1" && vr_left_a_button == "1") {
-			control_mode = ControlMode::HAND_FORCE_CLOSURE;
-		} else if (vr_left_trigger == "1") {
+		if (vr_left_a_button == "1") {
 			control_mode = ControlMode::HAND_POSITION;
-		} 
-		else {
-			std::cout << " Unknown control mode: VR_LEFT_TRIGGER: " << vr_left_trigger << " VR_LEFT_A_BUTTON: " << vr_left_a_button << std::endl;
+		} else if (vr_left_b_button == "1") {
+			control_mode = ControlMode::HAND_FORCE_CLOSURE;
+		} else {
+			control_mode = ControlMode::ARM;
 		}
 
 		// read robot state from redis
@@ -356,15 +359,25 @@ int main() {
 			// Compute torques for franka robot
 			if (vr_left_grip == "1") {
 				arm_posori_task->_desired_position = robot_position_center +  R_vr_to_user * (vr_wrist_position - vr_wrist_position_center);
-				robot_position_last = robot_position;
+				if (vr_left_trigger == "1") {
+					// extract angle and axis of rotation in vr frame
+					Matrix3d delta_rotation_vr = vr_wrist_orientation.transpose() * vr_wrist_orientation_center;
+					Matrix3d delta_rotation_base = R_vr_to_user * delta_rotation_vr * R_vr_to_user.transpose();
+					arm_posori_task->_desired_orientation = delta_rotation_base * robot_orientation_center;
+				} else {
+					vr_wrist_orientation_center = vr_wrist_orientation;
+					robot_orientation_center = robot_orientation;
+				}
 			} else {
-				arm_posori_task->_desired_position = robot_position_last;
 				robot_position_center = robot_position; 
 				vr_wrist_position_center = vr_wrist_position;
+				vr_wrist_orientation_center = vr_wrist_orientation;
+				robot_orientation_center = robot_orientation;
 			}
 
+			robot_position_last = robot_position;
+			robot_orientation_last = robot_orientation;
 			arm_posori_task->_desired_velocity =  Eigen::Vector3d::Zero();
-			arm_posori_task->_desired_orientation = robot_orientation_home;
 			arm_posori_task->_desired_angular_velocity = Eigen::Vector3d::Zero();
 
 			arm_posori_task->computeTorques(arm_posori_torques);
@@ -383,7 +396,6 @@ int main() {
 		} else if (control_mode == ControlMode::HAND_POSITION) {
             finger_target_positions = redis_client.getEigenMatrixJSON(FINGERTIP_POSITION_KEY);
 
-			// Switch to joint control of the franka arm and 
 			arm_command_torques.setZero();
 			hand_command_torques.setZero();
 
@@ -393,7 +405,7 @@ int main() {
 
 			arm_posori_task->_desired_position = robot_position_last;
 			arm_posori_task->_desired_velocity =  Eigen::Vector3d::Zero();
-			arm_posori_task->_desired_orientation = robot_orientation_home;
+			arm_posori_task->_desired_orientation = robot_orientation_last;
 			arm_posori_task->_desired_angular_velocity = Eigen::Vector3d::Zero();
 
 			arm_posori_task->computeTorques(arm_posori_torques);
