@@ -296,7 +296,9 @@ int main() {
 		// read wrist tracking params from vr controller
 		vr_wrist_position = redis_client.getEigenMatrixJSON(VR_LEFT_CONTROLLER_POSITION_KEY);
 		vr_wrist_orientation_vector = redis_client.getEigenMatrixJSON(VR_LEFT_CONTROLLER_ROTATION_KEY);
-		vr_wrist_orientation << vr_wrist_orientation_vector;
+		vr_wrist_orientation << vr_wrist_orientation_vector[0], vr_wrist_orientation_vector[1], vr_wrist_orientation_vector[2],
+		                        vr_wrist_orientation_vector[3], vr_wrist_orientation_vector[4], vr_wrist_orientation_vector[5],
+								vr_wrist_orientation_vector[6], vr_wrist_orientation_vector[7], vr_wrist_orientation_vector[8];
 		vr_left_grip = redis_client.get(VR_LEFT_CONTROLLER_GRIP_KEY);        // hold to enable haptic control 
 		vr_left_trigger = redis_client.get(VR_LEFT_CONTROLLER_TRIGGER_KEY);  // hold to enable orientation control
 		vr_left_a_button = redis_client.get(VR_LEFT_CONTROLLER_A_BUTTON);    // hold to enable hand position control
@@ -312,7 +314,7 @@ int main() {
 		} else {
 			control_mode = ControlMode::ARM;
 		}
-
+		
 		// read robot state from redis
 		if (flag_simulation) {
 			q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_SIM_KEY);
