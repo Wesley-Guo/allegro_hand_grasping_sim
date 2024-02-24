@@ -69,7 +69,7 @@ const string ALLEGRO_PALM_ORIENTATION = "allegroHand::controller::palm_orientati
 const std::string CONTROLLER_RUNNING = "sai2::panda_robot::controller_running";
 
 // switch for simulation mode 
-const bool flag_simulation = true;
+const bool flag_simulation = false;
 unsigned long long controller_counter = 0;
 
 // Allegro related constants
@@ -232,9 +232,8 @@ int main() {
 	arm_posori_task->_kv_pos = 20.0;
 	arm_posori_task->_kp_ori = 200.0;
 	arm_posori_task->_kv_ori = 20.0;
-	// TODO: Uncomment this in the lab
-	// arm_posori_task->_e_max = 5e-2;
-	// arm_posori_task->_e_min = 5e-3;
+	arm_posori_task->_e_max = 5e-2;
+	arm_posori_task->_e_min = 5e-3;
 
 	arm_posori_task->updateTaskModel(N_prec);
 
@@ -448,21 +447,25 @@ int main() {
 			}
 			last_hand_q = hand_robot->_q;
 		} else if (control_mode == ControlMode::HAND_FORCE_CLOSURE) {
-			// Compute target finger force in the hand frame based on their current position. 
-			if (prev_control_mode != ControlMode::HAND_FORCE_CLOSURE){
-				for (int i =0; i < NUM_FINGERS; i++) {
-					finger_current_center += finger_current_positions.segment(i*3, 3);
-				}
-				finger_current_center /= NUM_FINGERS;
-
-				for (int i=0; i < NUM_FINGERS; i++) {
-					Vector3d finger_to_center = finger_current_center - finger_current_positions.segment(i*3, 3); 
-					finger_target_forces.segment(i*3, 3) = finger_to_center / finger_to_center.norm(); 
+			if (prev_control_mode != ControlMode::HAND_FORCE_CLOSURE) {
+				Vector3d current_position = Vector3d::Zero(); 
+				// read current finger positions
+				for (int i=0; i < NUM_FINGERS; i++){
+					hand_robot->position(current_position, fingertip_link_names[i], fingertip_pos_in_link);
+					finger_current_positions.segment(i*3, 3) = current_position;
 				}
 
-				finger_target_forces *= 0.05;
+				// Compute target finger force in the hand frame based on their current position. 
+				for (int i=0; i < NUM_FINGERS - 1; i++) {
+					finger_target_forces.segment(i*3, 3) << 0, 0, -1; 
+				}
+
+				Vector3d finger_to_center;
+				finger_to_center << 0, -1, 1;
+				finger_target_forces.segment(9, 3) = finger_to_center / finger_to_center.norm();
+				finger_target_forces *= 2.0;
 			}
-
+			
 			for (int i=0; i < NUM_FINGERS; i++){
 				// keep executing the computed forces until the mode is switched. 
 				VectorXd finger_torques =  VectorXd::Zero(4);
