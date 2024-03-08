@@ -83,7 +83,8 @@ double HAND_V_MAX, HAND_TASK_POSITION_GAIN, HAND_TASK_VELOCITY_GAIN, HAND_POSTUR
 
 
 // control modes
-enum class ControlMode {ARM , HAND_POSITION, HAND_FORCE_CLOSURE};
+enum class ControlMode {ARM , HAND_POSITION};
+enum class HandControlMode {HAND_JOINT_HOLD, HAND_FORCE_CLOSURE};
 
 int main() {
 
@@ -98,7 +99,9 @@ int main() {
 
 	// initialize the control mode
 	ControlMode control_mode = ControlMode::ARM;
-	ControlMode prev_control_mode = ControlMode::ARM;
+
+	HandControlMode hand_control_mode = HandControlMode::HAND_JOINT_HOLD;
+	HandControlMode prev_hand_control_mode = HandControlMode::HAND_JOINT_HOLD;
 
 	// Gain values for allegro hand
 	if (flag_simulation) { 
@@ -122,11 +125,10 @@ int main() {
 	R_hand_to_wrist << 0, 0, 1, 0, -1, 0, 1, 0, 0;
 
 	// VR to robot workspace transform
-	const double device_z_rot = 180;
 	Matrix3d R_vr_to_base;  // default vr: x right, y up, z in
 	R_vr_to_base = AngleAxisd(M_PI / 2, Vector3d(1, 0, 0)).toRotationMatrix();  // x right, y left, z up
 	Matrix3d R_base_to_user;
-	R_base_to_user = AngleAxisd(device_z_rot * M_PI / 180, Vector3d(0, 0, 1)).toRotationMatrix();
+	R_base_to_user = AngleAxisd(M_PI, Vector3d(0, 0, 1)).toRotationMatrix();
 	Matrix3d R_vr_to_user = R_base_to_user * R_vr_to_base;
 
     // Initialize franka robot model
@@ -298,20 +300,24 @@ int main() {
 		vr_wrist_orientation << vr_wrist_orientation_vector[0], vr_wrist_orientation_vector[1], vr_wrist_orientation_vector[2],
 		                        vr_wrist_orientation_vector[3], vr_wrist_orientation_vector[4], vr_wrist_orientation_vector[5],
 								vr_wrist_orientation_vector[6], vr_wrist_orientation_vector[7], vr_wrist_orientation_vector[8];
+		vr_wrist_orientation.transposeInPlace();
 		vr_left_grip = redis_client.get(VR_LEFT_CONTROLLER_GRIP_KEY);        // hold to enable haptic control 
 		vr_left_trigger = redis_client.get(VR_LEFT_CONTROLLER_TRIGGER_KEY);  // hold to enable orientation control
 		vr_left_a_button = redis_client.get(VR_LEFT_CONTROLLER_A_BUTTON);    // hold to enable hand position control
 		vr_left_b_button = redis_client.get(VR_LEFT_CONTROLLER_B_BUTTON);    // hold to enable force closure mode
 
 		// read control mode from redis
-		// std::string control_mode_str = redis_client.get(CONTROL_MODE_KEY);
-		prev_control_mode = control_mode;
 		if (vr_left_a_button == "1") {
 			control_mode = ControlMode::HAND_POSITION;
-		} else if (vr_left_b_button == "1") {
-			control_mode = ControlMode::HAND_FORCE_CLOSURE;
 		} else {
 			control_mode = ControlMode::ARM;
+		}
+
+		prev_hand_control_mode = hand_control_mode;
+		if (vr_left_b_button == "1") {
+			hand_control_mode = HandControlMode::HAND_FORCE_CLOSURE;
+		} else {
+			hand_control_mode = HandControlMode::HAND_JOINT_HOLD;
 		}
 		
 		// read robot state from redis
@@ -386,14 +392,45 @@ int main() {
 			arm_command_torques = arm_posori_torques + arm_joint_torques;
 			last_arm_q = arm_robot->_q; 
 
-			// Compute finger torques for joint hold task
-			hand_command_torques = hand_robot->_M * (-HAND_JOINT_KP * (hand_robot->_q  - last_hand_q) -HAND_JOINT_KV * hand_robot->_dq); 
+			if (hand_control_mode == HandControlMode::HAND_FORCE_CLOSURE) {
+				if (prev_hand_control_mode != HandControlMode::HAND_FORCE_CLOSURE) {
+					Vector3d current_position = Vector3d::Zero(); 
+					// read current finger positions
+					for (int i=0; i < NUM_FINGERS; i++){
+						hand_robot->position(current_position, fingertip_link_names[i], fingertip_pos_in_link);
+						finger_current_positions.segment(i*3, 3) = current_position;
+					}
 
-            // send franka control torques to redis
-            redis_client.setEigenMatrixJSON(ARM_TORQUES_COMMANDED_SIM_KEY, arm_command_torques);
+					// Compute target finger force in the hand frame based on their current position. 
+					for (int i=0; i < NUM_FINGERS - 1; i++) {
+						finger_target_forces.segment(i*3, 3) << 0, 0, -1; 
+					}
 
-            // send allegro hand torques for maintaining position
-            redis_client.setEigenMatrixJSON(HAND_TORQUES_COMMANDED_SIM_KEY, hand_command_torques);
+					Vector3d finger_to_center;
+					finger_to_center << 0, -1, 1;
+					finger_target_forces.segment(9, 3) = finger_to_center / finger_to_center.norm();
+					finger_target_forces *= 3.5;
+				}
+			
+				for (int i=0; i < NUM_FINGERS; i++){
+					// keep executing the computed forces until the mode is switched. 
+					VectorXd finger_torques =  VectorXd::Zero(4);
+					VectorXd posture_torques = VectorXd::Zero(4);
+					MatrixXd J_finger = MatrixXd::Zero(3, 4);
+					MatrixXd J_bar_finger = MatrixXd::Zero(3, 4);
+
+					hand_robot->Jv(finger_task_Jacobian, fingertip_link_names[i], fingertip_pos_in_link);
+					J_finger = finger_task_Jacobian.block<3, 4>(0, i*4);
+					finger_torques = J_finger.transpose() * finger_target_forces.segment(i*3, 3); 
+					J_bar_finger = J_finger.transpose() * (J_finger * J_finger.transpose()).inverse(); 
+					hand_N_task_transpose = MatrixXd::Identity(4, 4) - (J_finger.transpose() * J_bar_finger.transpose());
+					posture_torques = hand_N_task_transpose * (-HAND_POSTURE_POSITION_GAIN * (hand_robot->_q.segment(i*4, 4) - hand_q_mid.segment(i*4, 4)) - HAND_POSTURE_VELOCITY_GAIN * hand_robot->_dq.segment(i*4, 4));
+					hand_command_torques.segment(i*4, 4) = (finger_torques + posture_torques);
+				}	
+			} else {
+				// Compute finger torques for joint hold task
+				hand_command_torques = hand_robot->_M * (-HAND_JOINT_KP * (hand_robot->_q  - last_hand_q) -HAND_JOINT_KV * hand_robot->_dq); 
+			} 
 		} else if (control_mode == ControlMode::HAND_POSITION) {
             finger_target_positions = redis_client.getEigenMatrixJSON(FINGERTIP_POSITION_KEY);
 
@@ -446,41 +483,6 @@ int main() {
 				hand_command_torques.segment(i*4, 4) = (finger_torques + posture_torques); // each pos task generates torques for all joints, with only the relevant finger joints being nonzero					
 			}
 			last_hand_q = hand_robot->_q;
-		} else if (control_mode == ControlMode::HAND_FORCE_CLOSURE) {
-			if (prev_control_mode != ControlMode::HAND_FORCE_CLOSURE) {
-				Vector3d current_position = Vector3d::Zero(); 
-				// read current finger positions
-				for (int i=0; i < NUM_FINGERS; i++){
-					hand_robot->position(current_position, fingertip_link_names[i], fingertip_pos_in_link);
-					finger_current_positions.segment(i*3, 3) = current_position;
-				}
-
-				// Compute target finger force in the hand frame based on their current position. 
-				for (int i=0; i < NUM_FINGERS - 1; i++) {
-					finger_target_forces.segment(i*3, 3) << 0, 0, -1; 
-				}
-
-				Vector3d finger_to_center;
-				finger_to_center << 0, -1, 1;
-				finger_target_forces.segment(9, 3) = finger_to_center / finger_to_center.norm();
-				finger_target_forces *= 2.0;
-			}
-			
-			for (int i=0; i < NUM_FINGERS; i++){
-				// keep executing the computed forces until the mode is switched. 
-				VectorXd finger_torques =  VectorXd::Zero(4);
-				VectorXd posture_torques = VectorXd::Zero(4);
-				MatrixXd J_finger = MatrixXd::Zero(3, 4);
-				MatrixXd J_bar_finger = MatrixXd::Zero(3, 4);
-
-				hand_robot->Jv(finger_task_Jacobian, fingertip_link_names[i], fingertip_pos_in_link);
-				J_finger = finger_task_Jacobian.block<3, 4>(0, i*4);
-				finger_torques = J_finger.transpose() * finger_target_forces.segment(i*3, 3); 
-				J_bar_finger = J_finger.transpose() * (J_finger * J_finger.transpose()).inverse(); 
-				hand_N_task_transpose = MatrixXd::Identity(4, 4) - (J_finger.transpose() * J_bar_finger.transpose());
-				posture_torques = hand_N_task_transpose * (-HAND_POSTURE_POSITION_GAIN * (hand_robot->_q.segment(i*4, 4) - hand_q_mid.segment(i*4, 4)) - HAND_POSTURE_VELOCITY_GAIN * hand_robot->_dq.segment(i*4, 4));
-				hand_command_torques.segment(i*4, 4) = (finger_torques + posture_torques);
-			}
 		} else {
 			arm_command_torques.setZero();
 			hand_command_torques.setZero();
