@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 
-<world name="demo_world" gravity="0.0 0.0 0.0">
-<!-- <world name="demo_world" gravity="0.0 0.0 -9.81"> -->
+<!-- <world name="demo_world" gravity="0.0 0.0 0.0"> -->
+<world name="demo_world" gravity="0.0 0.0 -9.81">
 
 	<robot name="allegro">
 		<model dir="./resources" path="allegro_hand.urdf" name="allegro" />

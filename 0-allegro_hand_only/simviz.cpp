@@ -356,9 +356,9 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		// Obtain torques from controller
 		redis_client.executeReadCallback(0);
 		
-		// robot->gravityVector(g);
+		robot->gravityVector(g);
 	
-		sim->setJointTorques(robot_name, command_torques);
+		sim->setJointTorques(robot_name, command_torques + g);
 
 		// integrate forward
 		double curr_time = timer.elapsedTime();

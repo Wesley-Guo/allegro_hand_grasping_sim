@@ -1,10 +1,14 @@
 # create an executable
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ALLEGRO_HAND_GRASP_BINARY_DIR}/0-allegro_hand_only)
 ADD_EXECUTABLE (control_0_allegro controller.cpp ${ALLEGRO_HAND_GRASP_COMMON_SOURCE})
+ADD_EXECUTABLE (joint_control_0_allegro joint_controller.cpp ${ALLEGRO_HAND_GRASP_COMMON_SOURCE})
+ADD_EXECUTABLE (task_control_0_allegro task_controller.cpp ${ALLEGRO_HAND_GRASP_COMMON_SOURCE})
 ADD_EXECUTABLE (simviz_0_allegro simviz.cpp ${ALLEGRO_HAND_GRASP_COMMON_SOURCE})
 
 # and link the library against the executable
 TARGET_LINK_LIBRARIES (control_0_allegro  ${ALLEGRO_HAND_GRASP_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (joint_control_0_allegro ${ALLEGRO_HAND_GRASP_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (task_control_0_allegro ${ALLEGRO_HAND_GRASP_COMMON_LIBRARIES})
 TARGET_LINK_LIBRARIES (simviz_0_allegro  ${ALLEGRO_HAND_GRASP_COMMON_LIBRARIES})
 
 # export resources such as model files.

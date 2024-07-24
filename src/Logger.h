@@ -114,6 +114,30 @@ public:
 		_logfile.close();
 	}
 
+	void log() {
+		if (!_f_is_logging){
+			// complete header line
+			_logfile << "\n";
+
+			// set logging to true
+			_f_is_logging = true;
+		}
+		for (auto iter: _vars_to_log) {
+			_logfile << ", ";
+			iter->print(_logfile);
+		}
+		_logfile << "\n";
+	}
+
+	void stop_log() {
+		// set logging false
+		_f_is_logging = false;
+
+		// close file
+		_logfile.close();
+	}
+
+
 	// vector of pointers to encapsulated Eigen vector objects that are registered with 
 	// the logger
 	std::vector<IEigenVector *> _vars_to_log;

@@ -124,7 +124,7 @@ int main() {
 	//For each fingertip posori task, initialize control parameters
 	for (int i = 0; i < 4; i++) {
 		finger_pos_tasks[i]->_use_interpolation_flag = false;
-		finger_pos_tasks[i]->setDynamicDecouplingFull();
+		// finger_pos_tasks[i]->setDynamicDecouplingFull();
 		// finger_pos_tasks[i]->setDynamicDecouplingNone();
 		// finger_pos_tasks[i]->_otg->setMaxLinearVelocity(0.30);
 		// finger_pos_tasks[i]->_otg->setMaxLinearAcceleration(1.0);
