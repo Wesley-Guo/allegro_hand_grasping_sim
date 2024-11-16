@@ -234,8 +234,8 @@ int main() {
 	arm_posori_task->_kv_pos = 20.0;
 	arm_posori_task->_kp_ori = 200.0;
 	arm_posori_task->_kv_ori = 20.0;
-	arm_posori_task->_e_max = 5e-2;
-	arm_posori_task->_e_min = 5e-3;
+	// arm_posori_task->_e_max = 5e-2;
+	// arm_posori_task->_e_min = 5e-3;
 
 	arm_posori_task->updateTaskModel(N_prec);
 

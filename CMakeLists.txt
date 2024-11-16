@@ -22,7 +22,7 @@ endif()
 include_directories(${EIGEN3_INCLUDE_DIR})
 
 # # - CHAI3D
-find_package(CHAI3D REQUIRED)
+find_package(CHAI3D-OLD REQUIRED)
 include_directories(${CHAI3D_INCLUDE_DIRS})
 add_definitions(${CHAI3D_DEFINITIONS})
 if (CMAKE_SYSTEM_NAME MATCHES Darwin)
@@ -33,32 +33,32 @@ endif () #NOTE: Windows is currently unsupported
 link_directories(${CHAI3D_LIBRARY_DIRS})
 
 # - SAI2-SIMULATION
-find_package(SAI2-SIMULATION REQUIRED)
+find_package(SAI2-SIMULATION-OLD REQUIRED)
 include_directories(${SAI2-SIMULATION_INCLUDE_DIRS})
 add_definitions(${SAI2-SIMULATION_DEFINITIONS})
 
 # - SAI2-MODEL
-FIND_PACKAGE(SAI2-MODEL REQUIRED)
+FIND_PACKAGE(SAI2-MODEL-OLD REQUIRED)
 include_directories(${SAI2-MODEL_INCLUDE_DIRS})
 add_definitions(${SAI2-MODEL_DEFINITIONS})
 
 # - SAI2-GRAPHICS
-FIND_PACKAGE(SAI2-GRAPHICS REQUIRED)
+FIND_PACKAGE(SAI2-GRAPHICS-OLD REQUIRED)
 include_directories(${SAI2-GRAPHICS_INCLUDE_DIRS})
 add_definitions(${SAI2-GRAPHICS_DEFINITIONS})
 
 # - SAI2-COMMON
-find_package(SAI2-COMMON REQUIRED)
+find_package(SAI2-COMMON-OLD REQUIRED)
 include_directories(${SAI2-COMMON_INCLUDE_DIRS})
 add_definitions(${SAI2-COMMON_DEFINITIONS})
 
 # - SAI2-PRIMITIVES
-find_package(SAI2-PRIMITIVES REQUIRED)
+find_package(SAI2-PRIMITIVES-OLD REQUIRED)
 include_directories(${SAI2-PRIMITIVES_INCLUDE_DIRS})
 add_definitions(${SAI2-PRIMITIVES_DEFINITIONS})
 
 # - SAI2-URDF
-find_package(SAI2-URDF REQUIRED)
+find_package(SAI2-URDF-OLD REQUIRED)
 include_directories(${SAI2-URDF_INCLUDE_DIRS})
 add_definitions(${SAI2-URDF_DEFINITIONS})
 
